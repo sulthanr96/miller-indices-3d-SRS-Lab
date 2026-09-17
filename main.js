@@ -11,7 +11,7 @@ scene.background = new THREE.Color(0xf8fafc);
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
 camera.up.set(0, 0, 1); // Z is up
 
-const defaultCameraPos = new THREE.Vector3(3.0, -2.0, 2.5);
+const defaultCameraPos = new THREE.Vector3(2.5, 2.5, 2.5);
 const defaultTarget = new THREE.Vector3(0.5, 0.5, 0.5);
 camera.position.copy(defaultCameraPos);
 
