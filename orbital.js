@@ -111,12 +111,9 @@ function updateIsoSurface() {
     effectPositive.isolation = isovalue;
     effectNegative.isolation = isovalue;
     
-    // To trigger mesh generation, we might need to force an update.
-    // Usually three.js does it in the render loop if `.hasPositions` is true, 
-    // but manipulating the field directly might require calling `.update()`.
-    // Wait, in Three.js, we just let the renderer do it if we've updated the field.
-    // But we need to make sure the mesh is generated correctly.
-    // Actually, setting field directly and then it will generate mesh in next render call.
+    // Trigger geometry rebuild
+    effectPositive.update();
+    effectNegative.update();
 }
 
 
