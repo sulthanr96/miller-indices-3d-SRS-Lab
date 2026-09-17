@@ -71,11 +71,10 @@ export function evaluateWavefunction(type, x, y, z) {
     const r = Math.sqrt(x*x + y*y + z*z);
     
     // Scale down Cartesian coordinates to spread the orbital over the grid nicely
-    // This acts like varying the Bohr radius a_0 relative to our viewing box
     let scale = 1.0;
-    if (type.startsWith('1')) scale = 4.0;
-    if (type.startsWith('2')) scale = 2.0;
-    if (type.startsWith('3')) scale = 1.0;
+    if (type.startsWith('1')) scale = 0.6;
+    if (type.startsWith('2')) scale = 0.3;
+    if (type.startsWith('3')) scale = 0.15;
 
     const r_scaled = r * scale;
     const x_s = x * scale;
@@ -108,7 +107,7 @@ export function evaluateWavefunction(type, x, y, z) {
 // Returns an array of wavefunctions [h1, h2, ...] for a given point
 export function evaluateHybridization(type, x, y, z, t) {
     // We mainly use 2s and 2p for standard hybridization
-    const scale = 2.0;
+    const scale = 0.3;
     const r_scaled = Math.sqrt(x*x + y*y + z*z) * scale;
     const x_s = x * scale, y_s = y * scale, z_s = z * scale;
 

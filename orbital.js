@@ -8,7 +8,8 @@ const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-camera.position.set(15, 12, 15);
+camera.up.set(0, 0, 1);
+camera.position.set(15, 15, 15);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
@@ -25,16 +26,45 @@ const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
 scene.add(ambientLight);
 
 const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-dirLight.position.set(10, 20, 15);
+dirLight.position.set(10, 15, 20);
 scene.add(dirLight);
 
 const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-dirLight2.position.set(-10, -10, -15);
+dirLight2.position.set(-10, -15, -10);
 scene.add(dirLight2);
 
-// --- Axes ---
+// --- Axes & Labels ---
 const axesHelper = new THREE.AxesHelper(10);
 scene.add(axesHelper);
+
+function createTextSprite(text, color) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.font = 'bold 64px sans-serif';
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 64, 64);
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(3, 3, 3);
+    return sprite;
+}
+
+const xLabel = createTextSprite('X', '#ff4444');
+xLabel.position.set(11, 0, 0);
+scene.add(xLabel);
+
+const yLabel = createTextSprite('Y', '#44ff44');
+yLabel.position.set(0, 11, 0);
+scene.add(yLabel);
+
+const zLabel = createTextSprite('Z', '#4444ff');
+zLabel.position.set(0, 0, 11);
+scene.add(zLabel);
 
 // --- Marching Cubes Setup ---
 let resolution = 40; // grid resolution
