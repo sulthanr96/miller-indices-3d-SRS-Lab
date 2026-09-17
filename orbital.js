@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
-import { evaluateWavefunction } from './quantumMath.js';
+import { evaluateWavefunction, evaluateHybridization } from './quantumMath.js';
 
 // --- Scene Setup ---
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-camera.position.set(20, 15, 20);
+camera.position.set(15, 12, 15);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
@@ -18,9 +18,10 @@ container.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
+controls.target.set(0, 0, 0);
 
 // --- Lighting ---
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
 scene.add(ambientLight);
 
 const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -38,18 +39,15 @@ scene.add(axesHelper);
 // --- Marching Cubes Setup ---
 let resolution = 40; // grid resolution
 const materialPositive = new THREE.MeshStandardMaterial({ 
-    color: 0x3b82f6, roughness: 0.3, metalness: 0.1, side: THREE.DoubleSide, transparent: true, opacity: 0.9 
+    color: 0x3b82f6, roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide, transparent: true, opacity: 0.85 
 });
 const materialNegative = new THREE.MeshStandardMaterial({ 
-    color: 0xef4444, roughness: 0.3, metalness: 0.1, side: THREE.DoubleSide, transparent: true, opacity: 0.9 
+    color: 0xef4444, roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide, transparent: true, opacity: 0.85 
 });
 
 let effectPositive = new MarchingCubes(resolution, materialPositive, true, true, 100000);
 let effectNegative = new MarchingCubes(resolution, materialNegative, true, true, 100000);
-effectPositive.position.set(0, 0, 0);
-effectNegative.position.set(0, 0, 0);
 
-// Scale grid to a reasonable spatial size (e.g., from -10 to 10 in all directions)
 const extent = 10.0; 
 effectPositive.scale.set(extent, extent, extent);
 effectNegative.scale.set(extent, extent, extent);
@@ -57,20 +55,22 @@ effectNegative.scale.set(extent, extent, extent);
 scene.add(effectPositive);
 scene.add(effectNegative);
 
-let currentType = '1s';
+let isHybridMode = false;
+let currentAtomic = '1s';
+let currentHybrid = 'sp';
 let isovalue = 0.05;
+let mixValue = 0.0;
 let showPhase = true;
+
+const hybridInfos = {
+    'sp': { name: 'sp Hybridization', desc: 'Linear geometry. 180° bond angle. Example: BeCl₂.', angle: '180°' },
+    'sp2': { name: 'sp² Hybridization', desc: 'Trigonal planar geometry. 120° bond angle. Example: BF₃.', angle: '120°' },
+    'sp3': { name: 'sp³ Hybridization', desc: 'Tetrahedral geometry. 109.5° bond angle. Example: CH₄.', angle: '109.5°' }
+};
 
 function updateIsoSurface() {
     effectPositive.reset();
     effectNegative.reset();
-    
-    // Marching cubes field is a 1D array of size resolution^3
-    // We map [0, resolution-1] to [-extent, extent]
-    
-    // We can directly fill the field array of the MarchingCubes object.
-    // Three.js MarchingCubes uses an internal field array.
-    // But setting it manually is done by accessing `effect.field`.
     
     let index = 0;
     for ( let k = 0; k < resolution; k ++ ) {
@@ -80,50 +80,56 @@ function updateIsoSurface() {
             for ( let i = 0; i < resolution; i ++ ) {
                 const x = -extent + (2.0 * extent * i) / (resolution - 1);
                 
-                // Evaluate wave function at (x,y,z)
-                const psi = evaluateWavefunction(currentType, x, y, z);
+                let maxPos = 0;
+                let maxNeg = 0;
+
+                if (!isHybridMode) {
+                    const psi = evaluateWavefunction(currentAtomic, x, y, z);
+                    maxPos = psi > 0 ? psi : 0;
+                    maxNeg = psi < 0 ? -psi : 0;
+                } else {
+                    const hybrids = evaluateHybridization(currentHybrid, x, y, z, mixValue);
+                    // To show all hybrid orbitals together, we take the max probability at this point
+                    for (let h of hybrids) {
+                        if (h > maxPos) maxPos = h;
+                        if (h < -maxNeg) maxNeg = -h;
+                    }
+                }
                 
-                // Probability density is proportional to psi^2, but to capture phase, 
-                // we often just look at magnitude |psi| or map psi to field.
-                // Standard convention: 
-                // Positive lobe: psi > isovalue
-                // Negative lobe: psi < -isovalue
-                
-                // Marching cubes draws surface where field == isolation value.
-                // The three.js implementation adds fields and draws where field > isolation.
-                
-                // For positive lobe, we want field to be |psi| if psi > 0, else 0
-                const posVal = psi > 0 ? psi : 0;
-                // For negative lobe, we want field to be |psi| if psi < 0, else 0
-                const negVal = psi < 0 ? -psi : 0;
-                
-                effectPositive.field[index] = posVal;
-                effectNegative.field[index] = negVal;
+                effectPositive.field[index] = maxPos;
+                effectNegative.field[index] = maxNeg;
                 index++;
             }
         }
     }
     
-    // We must pass the isovalue threshold manually (since we bypass addBall)
-    // Three.js update logic extracts the mesh based on isolation.
-    // Wait, three.js MarchingCubes extracts when we call render?
-    // Actually, `isolation` is a property of the MarchingCubes object.
     effectPositive.isolation = isovalue;
     effectNegative.isolation = isovalue;
     
-    // Trigger geometry rebuild
     effectPositive.update();
     effectNegative.update();
 }
 
-
 // --- UI Events ---
 document.getElementById('orbital-select').addEventListener('change', (e) => {
-    currentType = e.target.value;
+    currentAtomic = e.target.value;
     updateIsoSurface();
-    
-    // Update Info Panel
-    document.getElementById('info-title').innerHTML = `${currentType} Orbital <span class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300 font-mono">Quantum Info</span>`;
+    document.getElementById('info-title').innerHTML = `${currentAtomic} Orbital <span class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300 font-mono">Quantum Info</span>`;
+    document.getElementById('info-desc').innerText = "Atomic orbital wavefunction probability surface.";
+});
+
+document.getElementById('hybrid-select').addEventListener('change', (e) => {
+    currentHybrid = e.target.value;
+    updateIsoSurface();
+    const info = hybridInfos[currentHybrid];
+    document.getElementById('info-title').innerHTML = `${info.name} <span class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300 font-mono">${info.angle}</span>`;
+    document.getElementById('info-desc').innerText = info.desc;
+});
+
+document.getElementById('mix-slider').addEventListener('input', (e) => {
+    mixValue = parseFloat(e.target.value);
+    document.getElementById('mix-display').innerText = Math.round(mixValue * 100) + '%';
+    updateIsoSurface();
 });
 
 document.getElementById('iso-slider').addEventListener('input', (e) => {
@@ -136,6 +142,42 @@ document.getElementById('phase-toggle').addEventListener('change', (e) => {
     showPhase = e.target.checked;
     effectNegative.visible = showPhase;
 });
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+    camera.position.set(15, 12, 15);
+    controls.target.set(0, 0, 0);
+    controls.update();
+});
+
+// Mode Switching
+const btnAtomic = document.getElementById('mode-atomic-btn');
+const btnHybrid = document.getElementById('mode-hybrid-btn');
+const panelAtomic = document.getElementById('atomic-controls');
+const panelHybrid = document.getElementById('hybrid-controls');
+
+function setMode(isHybrid) {
+    isHybridMode = isHybrid;
+    if (isHybrid) {
+        btnHybrid.className = "px-3 py-1.5 md:px-4 rounded-md bg-slate-800 shadow-sm text-xs md:text-sm font-bold text-blue-400 transition-all";
+        btnAtomic.className = "px-3 py-1.5 md:px-4 rounded-md text-xs md:text-sm font-bold text-slate-400 hover:text-slate-200 transition-all";
+        panelHybrid.classList.remove('hidden');
+        panelAtomic.classList.add('hidden');
+        
+        // Trigger select event to update info panel
+        document.getElementById('hybrid-select').dispatchEvent(new Event('change'));
+    } else {
+        btnAtomic.className = "px-3 py-1.5 md:px-4 rounded-md bg-slate-800 shadow-sm text-xs md:text-sm font-bold text-blue-400 transition-all";
+        btnHybrid.className = "px-3 py-1.5 md:px-4 rounded-md text-xs md:text-sm font-bold text-slate-400 hover:text-slate-200 transition-all";
+        panelAtomic.classList.remove('hidden');
+        panelHybrid.classList.add('hidden');
+        
+        document.getElementById('orbital-select').dispatchEvent(new Event('change'));
+    }
+}
+
+btnAtomic.addEventListener('click', () => setMode(false));
+btnHybrid.addEventListener('click', () => setMode(true));
+
 
 // Initialize
 updateIsoSurface();

@@ -103,3 +103,40 @@ export function evaluateWavefunction(type, x, y, z) {
     
     return rad * ang;
 }
+
+// Evaluate Hybridized Orbitals with mixing parameter t (0 to 1)
+// Returns an array of wavefunctions [h1, h2, ...] for a given point
+export function evaluateHybridization(type, x, y, z, t) {
+    // We mainly use 2s and 2p for standard hybridization
+    const scale = 2.0;
+    const r_scaled = Math.sqrt(x*x + y*y + z*z) * scale;
+    const x_s = x * scale, y_s = y * scale, z_s = z * scale;
+
+    const psi_s = radialR(2, 0, r_scaled) * sphericalY(0, 0, x_s, y_s, z_s, r_scaled);
+    const psi_px = radialR(2, 1, r_scaled) * sphericalY(1, 1, x_s, y_s, z_s, r_scaled);
+    const psi_py = radialR(2, 1, r_scaled) * sphericalY(1, -1, x_s, y_s, z_s, r_scaled);
+    const psi_pz = radialR(2, 1, r_scaled) * sphericalY(1, 0, x_s, y_s, z_s, r_scaled);
+
+    const hybrids = [];
+
+    if (type === 'sp') {
+        const h1 = (1-t)*psi_s + t*(0.7071*psi_s + 0.7071*psi_pz);
+        const h2 = (1-t)*psi_pz + t*(0.7071*psi_s - 0.7071*psi_pz);
+        hybrids.push(h1, h2);
+    } 
+    else if (type === 'sp2') {
+        const h1 = (1-t)*psi_s + t*(0.5773*psi_s + 0.8165*psi_py);
+        const h2 = (1-t)*psi_py + t*(0.5773*psi_s - 0.4082*psi_py + 0.7071*psi_px);
+        const h3 = (1-t)*psi_px + t*(0.5773*psi_s - 0.4082*psi_py - 0.7071*psi_px);
+        hybrids.push(h1, h2, h3);
+    }
+    else if (type === 'sp3') {
+        const h1 = (1-t)*psi_s  + t*0.5*(psi_s + psi_px + psi_py + psi_pz);
+        const h2 = (1-t)*psi_px + t*0.5*(psi_s + psi_px - psi_py - psi_pz);
+        const h3 = (1-t)*psi_py + t*0.5*(psi_s - psi_px + psi_py - psi_pz);
+        const h4 = (1-t)*psi_pz + t*0.5*(psi_s - psi_px - psi_py + psi_pz);
+        hybrids.push(h1, h2, h3, h4);
+    }
+
+    return hybrids;
+}
