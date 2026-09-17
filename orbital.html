@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atomic Orbitals & Hybridization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { outline: none; }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+</head>
+<body class="bg-slate-900 h-screen flex flex-col font-sans text-gray-200 selection:bg-blue-500 overflow-hidden">
+    <!-- Header Controls -->
+    <header class="bg-slate-800/90 backdrop-blur shadow-sm p-3 md:px-6 md:py-3 flex flex-col md:flex-row justify-between items-center z-20 border-b border-slate-700 gap-3 shrink-0">
+        
+        <!-- Back to Hub & Title -->
+        <div class="flex justify-between items-center w-full md:w-auto">
+            <div class="flex items-center space-x-3">
+                <a href="index.html" class="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-lg transition-colors flex items-center justify-center">
+                    <i class="fas fa-home"></i>
+                </a>
+                <div class="bg-blue-600 text-white p-2 rounded-lg shadow-inner">
+                    <i class="fas fa-atom text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white leading-tight">Atomic Orbitals</h1>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Controls Row -->
+        <div class="flex flex-wrap md:flex-nowrap items-center justify-center gap-2 w-full md:w-auto">
+            
+            <!-- Mode Toggle -->
+            <div class="flex items-center bg-slate-700 p-1 rounded-lg border border-slate-600 shadow-inner">
+                <button id="mode-atomic-btn" class="px-3 py-1.5 md:px-4 rounded-md bg-slate-800 shadow-sm text-xs md:text-sm font-bold text-blue-400 transition-all">Basic Orbitals</button>
+                <button id="mode-hybrid-btn" class="px-3 py-1.5 md:px-4 rounded-md text-xs md:text-sm font-bold text-slate-400 hover:text-slate-200 transition-all">Hybridization</button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2">
+                <button id="reset-btn" class="bg-slate-700 hover:bg-slate-600 active:bg-slate-500 text-white font-semibold w-10 h-10 md:w-auto md:py-2 md:px-3 rounded-xl shadow transition-all flex items-center justify-center space-x-2 border border-slate-600">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow flex flex-col md:block relative overflow-y-auto md:overflow-hidden bg-slate-900">
+        
+        <!-- 3D Canvas Container -->
+        <div id="canvas-container" class="w-full h-[55vh] shrink-0 md:h-auto md:absolute md:inset-0 cursor-move border-b border-slate-800 md:border-none z-0"></div>
+        
+        <!-- Panels Container -->
+        <div class="flex flex-col gap-4 p-4 md:p-0 z-10">
+            
+            <!-- Orbital Settings Panel (Right Sidebar on Desktop) -->
+            <div class="md:absolute md:top-4 md:right-4 lg:right-6 w-full md:w-64 space-y-4 pointer-events-none">
+                
+                <!-- Settings Card -->
+                <div class="bg-slate-800/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-slate-700 pointer-events-auto">
+                    <h3 class="font-bold text-white mb-3 flex items-center gap-2">
+                        <i class="fas fa-sliders-h text-blue-400"></i> Configuration
+                    </h3>
+                    
+                    <div class="space-y-3">
+                        <!-- Orbital Selection (Visible in Atomic Mode) -->
+                        <div id="atomic-controls">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Orbital</label>
+                            <select id="orbital-select" class="w-full mt-1 p-2 bg-slate-700 text-white border border-slate-600 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all cursor-pointer">
+                                <optgroup label="s Orbitals">
+                                    <option value="1s" selected>1s</option>
+                                    <option value="2s">2s</option>
+                                    <option value="3s">3s</option>
+                                </optgroup>
+                                <optgroup label="p Orbitals">
+                                    <option value="2pz">2p_z</option>
+                                    <option value="2px">2p_x</option>
+                                    <option value="2py">2p_y</option>
+                                </optgroup>
+                                <optgroup label="d Orbitals">
+                                    <option value="3dz2">3d_z²</option>
+                                    <option value="3dxz">3d_xz</option>
+                                    <option value="3dyz">3d_yz</option>
+                                    <option value="3dxy">3d_xy</option>
+                                    <option value="3dx2y2">3d_x²-y²</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        
+                        <!-- Hybrid Selection (Visible in Hybrid Mode) -->
+                        <div id="hybrid-controls" class="hidden">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Hybridization Type</label>
+                            <select id="hybrid-select" class="w-full mt-1 p-2 bg-slate-700 text-white border border-slate-600 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all cursor-pointer">
+                                <option value="sp">sp (Linear)</option>
+                                <option value="sp2">sp² (Trigonal Planar)</option>
+                                <option value="sp3">sp³ (Tetrahedral)</option>
+                            </select>
+                        </div>
+
+                        <!-- Phase Colors Toggle -->
+                        <div class="flex items-center justify-between pt-2 border-t border-slate-700">
+                            <span class="text-xs font-bold text-slate-300">Show Wave Phase</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="phase-toggle" class="sr-only peer" checked>
+                                <div class="w-9 h-5 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                            </label>
+                        </div>
+                        
+                        <!-- Isovalue Slider -->
+                        <div>
+                            <div class="flex justify-between items-center">
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Probability Cutoff</label>
+                                <span id="iso-value-display" class="text-xs font-mono text-blue-400">0.05</span>
+                            </div>
+                            <input type="range" id="iso-slider" min="0.01" max="0.3" step="0.01" value="0.05" class="w-full h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer mt-2">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Panel -->
+                <div id="orbital-info" class="bg-slate-800/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-slate-700 pointer-events-auto transition-all">
+                    <h4 id="info-title" class="font-bold text-white border-b border-slate-600 pb-2 mb-2 text-sm flex items-center justify-between">
+                        1s Orbital
+                        <span class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300 font-mono">l = 0, m = 0</span>
+                    </h4>
+                    <p id="info-desc" class="text-xs text-slate-300 leading-relaxed">
+                        Spherically symmetric electron probability distribution. No angular nodes.
+                    </p>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+
+    <script type="module" src="orbital.js"></script>
+</body>
+</html>
