@@ -9,7 +9,11 @@ scene.background = new THREE.Color(0xf8fafc);
 
 // Camera setup
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-camera.position.set(2.5, 2.0, 3.5);
+camera.up.set(0, 0, 1); // Z is up
+
+const defaultCameraPos = new THREE.Vector3(3.0, -2.0, 2.5);
+const defaultTarget = new THREE.Vector3(0.5, 0.5, 0.5);
+camera.position.copy(defaultCameraPos);
 
 // WebGL Renderer with antialiasing and preserveDrawingBuffer for export
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
@@ -23,7 +27,7 @@ container.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.target.set(0.5, 0.5, 0.5); // Focus on center of unit cell
+controls.target.copy(defaultTarget); // Focus on center of unit cell
 controls.minDistance = 1;
 controls.maxDistance = 10;
 
@@ -296,6 +300,13 @@ document.getElementById('export-btn').addEventListener('click', () => {
     link.href = dataURL;
     link.download = `miller_index_${h}_${k}_${l}.png`;
     link.click();
+});
+
+// Reset Position
+document.getElementById('reset-btn').addEventListener('click', () => {
+    camera.position.copy(defaultCameraPos);
+    controls.target.copy(defaultTarget);
+    controls.update();
 });
 
 // Window Resize
