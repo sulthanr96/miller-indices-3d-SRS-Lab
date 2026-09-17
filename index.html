@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Miller Indices 3D Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; }
+        /* Hide number input arrows */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        canvas {
+            outline: none;
+        }
+    </style>
+    <!-- Map Three.js modules -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+</head>
+<body class="bg-slate-50 h-screen flex flex-col font-sans text-gray-800 selection:bg-blue-200">
+    <!-- Header Controls -->
+    <header class="bg-white/90 backdrop-blur shadow-sm px-4 py-3 md:px-6 md:py-4 flex flex-col md:flex-row justify-between items-center z-10 border-b border-gray-200 gap-4">
+        <div class="flex items-center space-x-3 w-full md:w-auto justify-center md:justify-start">
+            <div class="bg-violet-600 text-white p-2 md:p-2.5 rounded-lg shadow-inner">
+                <i class="fas fa-cube text-lg md:text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg md:text-xl font-bold text-gray-800 leading-tight">Miller Indices 3D</h1>
+                <p class="text-xs text-gray-500 hidden md:block">Interactive Crystallography Visualizer</p>
+            </div>
+        </div>
+        
+        <div class="flex space-x-4 md:space-x-6 items-center w-full md:w-auto justify-between md:justify-end">
+            <div class="flex items-center space-x-2 md:space-x-3 bg-gray-50 p-2 md:p-2.5 rounded-xl border border-gray-200 shadow-inner">
+                <span class="font-bold text-gray-400 text-lg md:text-xl pl-1">(</span>
+                
+                <!-- h index -->
+                <div class="flex flex-col items-center">
+                    <label class="text-[10px] md:text-xs text-gray-500 font-bold mb-1 uppercase tracking-wider">h</label>
+                    <input type="number" id="h-input" value="1" 
+                           class="w-10 h-10 md:w-12 md:h-12 text-center font-bold text-lg md:text-xl bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all">
+                </div>
+                
+                <!-- k index -->
+                <div class="flex flex-col items-center">
+                    <label class="text-[10px] md:text-xs text-gray-500 font-bold mb-1 uppercase tracking-wider">k</label>
+                    <input type="number" id="k-input" value="1" 
+                           class="w-10 h-10 md:w-12 md:h-12 text-center font-bold text-lg md:text-xl bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all">
+                </div>
+                
+                <!-- l index -->
+                <div class="flex flex-col items-center">
+                    <label class="text-[10px] md:text-xs text-gray-500 font-bold mb-1 uppercase tracking-wider">l</label>
+                    <input type="number" id="l-input" value="1" 
+                           class="w-10 h-10 md:w-12 md:h-12 text-center font-bold text-lg md:text-xl bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all">
+                </div>
+                
+                <span class="font-bold text-gray-400 text-lg md:text-xl pr-1">)</span>
+            </div>
+            
+            <button id="export-btn" class="bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white font-semibold py-2.5 px-4 md:px-5 rounded-xl shadow hover:shadow-md transition-all flex items-center space-x-2 border border-violet-700">
+                <i class="fas fa-camera"></i>
+                <span class="hidden md:inline">Export PNG</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Canvas Area -->
+    <main class="flex-grow relative">
+        <div id="canvas-container" class="absolute inset-0 cursor-move"></div>
+        
+        <!-- Legend / Info Box -->
+        <div class="absolute bottom-4 left-4 md:bottom-6 md:left-6 bg-white/80 backdrop-blur-md p-4 rounded-xl shadow-lg border border-gray-200/50 pointer-events-none max-w-[280px] md:max-w-sm">
+            <h3 class="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                <i class="fas fa-info-circle text-violet-500"></i> Instructions
+            </h3>
+            <ul class="text-xs md:text-sm text-gray-600 space-y-1.5 list-disc pl-5">
+                <li>Change <strong>(h k l)</strong> values in the top bar to visualize different crystallographic planes.</li>
+                <li>For negative indices (e.g. 1̄), use the minus sign: <strong>-1</strong></li>
+                <li><strong>Left Click + Drag</strong> to rotate.</li>
+                <li><strong>Scroll</strong> to zoom in/out.</li>
+                <li><strong>Right Click + Drag</strong> to pan.</li>
+            </ul>
+        </div>
+        
+        <!-- GitHub Link -->
+        <a href="https://github.com" target="_blank" class="absolute bottom-4 right-4 md:bottom-6 md:right-6 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg border border-gray-200/50 hover:bg-gray-100 transition-colors text-gray-700 hover:text-black">
+            <i class="fab fa-github text-xl"></i>
+        </a>
+    </main>
+
+    <!-- Main JS Application -->
+    <script type="module" src="main.js"></script>
+</body>
+</html>
