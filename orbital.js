@@ -34,7 +34,7 @@ dirLight2.position.set(-10, -15, -10);
 scene.add(dirLight2);
 
 // --- Axes & Labels ---
-const axesHelper = new THREE.AxesHelper(10);
+const axesHelper = new THREE.AxesHelper(15);
 scene.add(axesHelper);
 
 function createTextSprite(text, color) {
@@ -50,24 +50,24 @@ function createTextSprite(text, color) {
     const texture = new THREE.CanvasTexture(canvas);
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false });
     const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(3, 3, 3);
+    sprite.scale.set(4, 4, 4);
     return sprite;
 }
 
 const xLabel = createTextSprite('X', '#ff4444');
-xLabel.position.set(11, 0, 0);
+xLabel.position.set(16, 0, 0);
 scene.add(xLabel);
 
 const yLabel = createTextSprite('Y', '#44ff44');
-yLabel.position.set(0, 11, 0);
+yLabel.position.set(0, 16, 0);
 scene.add(yLabel);
 
 const zLabel = createTextSprite('Z', '#4444ff');
-zLabel.position.set(0, 0, 11);
+zLabel.position.set(0, 0, 16);
 scene.add(zLabel);
 
 // --- Marching Cubes Setup ---
-let resolution = 40; // grid resolution
+let resolution = 35; // slightly lower for smooth auto-animation
 const materialPositive = new THREE.MeshStandardMaterial({ 
     color: 0x3b82f6, roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide, transparent: true, opacity: 0.85 
 });
@@ -78,7 +78,7 @@ const materialNegative = new THREE.MeshStandardMaterial({
 let effectPositive = new MarchingCubes(resolution, materialPositive, true, true, 100000);
 let effectNegative = new MarchingCubes(resolution, materialNegative, true, true, 100000);
 
-const extent = 10.0; 
+const extent = 15.0; 
 effectPositive.scale.set(extent, extent, extent);
 effectNegative.scale.set(extent, extent, extent);
 
@@ -218,9 +218,29 @@ window.addEventListener('resize', () => {
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
 
-function animate() {
+let mixDirection = 1;
+let lastTime = 0;
+
+function animate(time) {
     requestAnimationFrame(animate);
+    
+    // Auto-animate hybridization if in hybrid mode
+    if (isHybridMode) {
+        const dt = time - lastTime;
+        if (dt > 16) { // throttle slightly for performance
+            mixValue += mixDirection * 0.01;
+            if (mixValue >= 1.0) { mixValue = 1.0; mixDirection = -1; }
+            if (mixValue <= 0.0) { mixValue = 0.0; mixDirection = 1; }
+            
+            document.getElementById('mix-slider').value = mixValue;
+            document.getElementById('mix-display').innerText = Math.round(mixValue * 100) + '%';
+            
+            updateIsoSurface();
+            lastTime = time;
+        }
+    }
+    
     controls.update();
     renderer.render(scene, camera);
 }
-animate();
+requestAnimationFrame(animate);
