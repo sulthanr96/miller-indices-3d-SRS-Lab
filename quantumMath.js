@@ -152,10 +152,10 @@ export function evaluateHybridization(type, x, y, z) {
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, 0, 0, -1));
     }
 
-    let max_hybrid = 0;
+    let sum_hybrid = 0;
     for (let b of balloons) {
-        if (b > max_hybrid) max_hybrid = b;
+        sum_hybrid += b;
     }
 
-    return [max_hybrid];
+    return [sum_hybrid];
 }
