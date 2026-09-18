@@ -1,5 +1,4 @@
 let RDKitModule = null;
-let viewer3D = null;
 let currentMol = null;
 let currentSmiles = '';
 let currentSDF = '';
