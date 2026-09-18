@@ -70,7 +70,10 @@ export function evaluateWavefunction(type, x, y, z) {
     const r = Math.sqrt(x*x + y*y + z*z);
     
     // Base scale to fit well in the view box (extent = 15)
-    const scale = 0.5;
+    let scale = 0.5;
+    if (type.startsWith('1')) scale = 0.7; // 1s
+    if (type.startsWith('2')) scale = 0.4; // 2s/2p
+    if (type.startsWith('3')) scale = 0.25; // 3s/3d
     const r_s = r * scale;
     const x_s = x * scale;
     const y_s = y * scale;
@@ -109,7 +112,7 @@ function textbookBalloon(x, y, z, r, vx, vy, vz) {
 
 // Evaluate Hybridized Orbitals (Pure VSEPR shapes)
 export function evaluateHybridization(type, x, y, z) {
-    const scale = 0.5;
+    const scale = 0.3;
     const r_s = Math.sqrt(x*x + y*y + z*z) * scale;
     const x_s = x * scale, y_s = y * scale, z_s = z * scale;
 
