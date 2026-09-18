@@ -1,4 +1,4 @@
-﻿let RDKitModule = null;
+let RDKitModule = null;
 let viewer3D = null;
 let currentMol = null; // RDKit molecule object
 let currentSmiles = '';
@@ -188,7 +188,7 @@ async function fetchPugViewHeading(cid, heading) {
 }
 
 async function fetchCompoundDetails(cid, originalQuery) {
-    const fields = 'CanonicalSMILES,Title,MolecularFormula,MolecularWeight,XLogP,ExactMass,TPSA,Complexity,HeavyAtomCount,RotatableBondCount,HBondDonorCount,HBondAcceptorCount';
+    const fields = 'CanonicalSMILES,IsomericSMILES,Title,MolecularFormula,MolecularWeight,XLogP,ExactMass,TPSA,Complexity,HeavyAtomCount,RotatableBondCount,HBondDonorCount,HBondAcceptorCount';
     
     const [propData, sdfText, ghsData, physData] = await Promise.all([
         fetchJson(`${PUG}/compound/cid/${cid}/property/${fields}/JSON`),
