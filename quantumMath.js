@@ -4,32 +4,27 @@
  * This removes confusing inner radial nodes so hybrids look like standard textbook balloons.
  */
 
-// Evaluate simplified radial function R(r)
-// Normalized so the maximum amplitude is roughly 1.0
+// Evaluate radial function R(r)
+// Now using Harmonic Oscillator / Pseudo-Hydrogenic polynomials to introduce
+// physically accurate inner radial nodes (concentric shells) for 2s and 3s.
 export function radialR(n, l, r) {
-    // We use a simple Gaussian-like envelope r^l * exp(-r^2 / c)
-    // to give smooth, nodeless, textbook-like shapes.
-    
-    if (n === 1 && l === 0) { // 1s
-        return Math.exp(-r * r); // Max = 1 at r=0
+    if (n === 1 && l === 0) { // 1s (0 nodes)
+        return Math.exp(-r * r);
     } 
-    else if (n === 2 && l === 0) { // 2s (Nodeless)
-        // 2s in textbooks is just a larger sphere.
-        return Math.exp(- (r * r) / 3.0);
+    else if (n === 2 && l === 0) { // 2s (1 node)
+        // Introduces one spherical node where value crosses 0
+        return (1.0 - (r * r) / 1.5) * Math.exp(- (r * r) / 3.0);
     } 
-    else if (n === 2 && l === 1) { // 2p
-        // max of r * exp(-r^2 / 2) is at r=1, value is exp(-0.5) ~ 0.606
-        return (r / 0.6065) * Math.exp(- (r * r) / 2.0);
-    } 
-    else if (n === 3 && l === 0) { // 3s (Nodeless)
-        return Math.exp(- (r * r) / 6.0); // Even larger sphere
+    else if (n === 2 && l === 1) { // 2p (0 nodes)
+        return (r / 0.606) * Math.exp(- (r * r) / 2.0);
     }
-    else if (n === 3 && l === 1) { // 3p (Nodeless)
-        return (r / 0.6065) * Math.exp(- (r * r) / 3.0);
+    else if (n === 3 && l === 0) { // 3s (2 nodes)
+        // Introduces two spherical nodes
+        const x = (r * r) / 3.0;
+        return (1.0 - 2.0 * x + 0.5 * x * x) * Math.exp(- (r * r) / 6.0);
     }
-    else if (n === 3 && l === 2) { // 3d
-        // max of r^2 * exp(-r^2 / 2) is at r=sqrt(2), value is 2/e ~ 0.735
-        return ((r * r) / 0.7357) * Math.exp(- (r * r) / 2.0);
+    else if (n === 3 && l === 2) { // 3d (0 nodes)
+        return (r * r / 0.541) * Math.exp(- (r * r) / 1.5);
     }
     return 0;
 }
