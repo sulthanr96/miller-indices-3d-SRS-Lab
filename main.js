@@ -23,6 +23,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.autoRotateSpeed = 2.0;
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.target.copy(defaultTarget);
@@ -72,18 +73,26 @@ function createLabelSprite(text, position, colorHex) {
     canvas.width = 128; canvas.height = 128;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, 128, 128);
+    
+    // Draw background circle
+    ctx.beginPath();
+    ctx.arc(64, 64, 56, 0, 2 * Math.PI);
     ctx.fillStyle = colorHex;
-    ctx.font = 'bold 84px sans-serif';
+    ctx.fill();
+    
+    // Draw text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 68px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, 64, 64);
+    ctx.fillText(text, 64, 68);
     
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
     const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true });
     const sprite = new THREE.Sprite(material);
     sprite.position.copy(position);
-    sprite.scale.set(0.3, 0.3, 0.3);
+    sprite.scale.set(0.45, 0.45, 0.45);
     sprite.renderOrder = 999;
     return sprite;
 }
@@ -512,6 +521,20 @@ document.getElementById('export-btn').addEventListener('click', () => {
     link.download = `miller_index_${document.getElementById('h-input').value}_${document.getElementById('k-input').value}_${document.getElementById('l-input').value}.png`;
     link.click();
 });
+
+const rotateBtn = document.getElementById('rotate-btn');
+if (rotateBtn) {
+    rotateBtn.addEventListener('click', () => {
+        controls.autoRotate = !controls.autoRotate;
+        if (controls.autoRotate) {
+            rotateBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            rotateBtn.classList.replace('text-gray-700', 'text-blue-600');
+        } else {
+            rotateBtn.innerHTML = '<i class="fas fa-play"></i>';
+            rotateBtn.classList.replace('text-blue-600', 'text-gray-700');
+        }
+    });
+}
 
 document.getElementById('reset-btn').addEventListener('click', () => {
     camera.position.copy(defaultCameraPos);
