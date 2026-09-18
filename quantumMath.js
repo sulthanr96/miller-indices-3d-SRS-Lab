@@ -103,43 +103,28 @@ function textbookBalloon(x, y, z, r, vx, vy, vz) {
     if (r < 1e-6) return 0;
     const dot = (x*vx + y*vy + z*vz) / r;
     if (dot <= 0) return 0; // only the positive lobe
-    // r^2 * exp(-r^2 / 2) peaks at sqrt(2), dot^6 makes it a thin balloon
-    return ((r*r) / 0.7357) * Math.exp(-(r*r)/2.0) * Math.pow(dot, 6);
+    // r^2 * exp(-r^2 / 2) peaks at sqrt(2), dot^12 makes it a nice distinct thin balloon
+    return ((r*r) / 0.7357) * Math.exp(-(r*r)/2.0) * Math.pow(dot, 12);
 }
 
-// Evaluate Hybridized Orbitals with mixing parameter t (0 to 1)
-// We return an array of values to be rendered.
-// To make it look EXACTLY like textbooks, we interpolate between
-// the pure atomic orbitals (t=0) and the ideal VSEPR balloons (t=1).
-export function evaluateHybridization(type, x, y, z, t) {
+// Evaluate Hybridized Orbitals (Pure VSEPR shapes)
+export function evaluateHybridization(type, x, y, z) {
     const scale = 0.5;
     const r_s = Math.sqrt(x*x + y*y + z*z) * scale;
     const x_s = x * scale, y_s = y * scale, z_s = z * scale;
 
-    // Evaluate participating atomic orbitals (absolute values to show lobes)
-    const s = Math.abs(radialR(2, 0, r_s) * sphericalY(0, 0, x_s, y_s, z_s, r_s));
-    const px = Math.abs(radialR(2, 1, r_s) * sphericalY(1, 1, x_s, y_s, z_s, r_s));
-    const py = Math.abs(radialR(2, 1, r_s) * sphericalY(1, -1, x_s, y_s, z_s, r_s));
-    const pz = Math.abs(radialR(2, 1, r_s) * sphericalY(1, 0, x_s, y_s, z_s, r_s));
-    const dz2 = Math.abs(radialR(3, 2, r_s) * sphericalY(2, 0, x_s, y_s, z_s, r_s));
-    const dx2y2 = Math.abs(radialR(3, 2, r_s) * sphericalY(2, 2, x_s, y_s, z_s, r_s));
-
-    let max_atomic = 0;
     const balloons = [];
 
     if (type === 'sp') {
-        max_atomic = Math.max(s, px);
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, 1, 0, 0));
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, -1, 0, 0));
     } 
     else if (type === 'sp2') {
-        max_atomic = Math.max(s, px, py);
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, 1, 0, 0));
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, -0.5, 0.866, 0));
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, -0.5, -0.866, 0));
     }
     else if (type === 'sp3') {
-        max_atomic = Math.max(s, px, py, pz);
         const sq3 = 1.0/1.732;
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, sq3, sq3, sq3));
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, sq3, -sq3, -sq3));
@@ -147,7 +132,6 @@ export function evaluateHybridization(type, x, y, z, t) {
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, -sq3, -sq3, sq3));
     }
     else if (type === 'sp3d') {
-        max_atomic = Math.max(s, px, py, pz, dz2);
         // Equatorial
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, 1, 0, 0));
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, -0.5, 0.866, 0));
@@ -157,7 +141,6 @@ export function evaluateHybridization(type, x, y, z, t) {
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, 0, 0, -1));
     }
     else if (type === 'sp3d2') {
-        max_atomic = Math.max(s, px, py, pz, dz2, dx2y2);
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, 1, 0, 0));
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, -1, 0, 0));
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, 0, 1, 0));
@@ -171,6 +154,5 @@ export function evaluateHybridization(type, x, y, z, t) {
         if (b > max_hybrid) max_hybrid = b;
     }
 
-    // Blend from atomic to textbook hybrid
-    return [(1-t)*max_atomic + t*max_hybrid];
+    return [max_hybrid];
 }

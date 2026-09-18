@@ -118,7 +118,7 @@ function updateIsoSurface() {
                     maxPos = psi > 0 ? psi : 0;
                     maxNeg = psi < 0 ? -psi : 0;
                 } else {
-                    const hybrids = evaluateHybridization(currentHybrid, x, y, z, mixValue);
+                    const hybrids = evaluateHybridization(currentHybrid, x, y, z);
                     // To show all hybrid orbitals together, we take the max probability at this point
                     for (let h of hybrids) {
                         if (h > maxPos) maxPos = h;
@@ -154,12 +154,6 @@ document.getElementById('hybrid-select').addEventListener('change', (e) => {
     const info = hybridInfos[currentHybrid];
     document.getElementById('info-title').innerHTML = `${info.name} <span class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300 font-mono">${info.angle}</span>`;
     document.getElementById('info-desc').innerText = info.desc;
-});
-
-document.getElementById('mix-slider').addEventListener('input', (e) => {
-    mixValue = parseFloat(e.target.value);
-    document.getElementById('mix-display').innerText = Math.round(mixValue * 100) + '%';
-    updateIsoSurface();
 });
 
 document.getElementById('iso-slider').addEventListener('input', (e) => {
@@ -218,26 +212,18 @@ window.addEventListener('resize', () => {
     renderer.setSize(container.clientWidth, container.clientHeight);
 });
 
-let mixDirection = 1;
 let lastTime = 0;
 
 function animate(time) {
     requestAnimationFrame(animate);
     
-    // Auto-animate hybridization if in hybrid mode
+    // Auto-rotate the scene slowly to appreciate the 3D geometry
     if (isHybridMode) {
-        const dt = time - lastTime;
-        if (dt > 16) { // throttle slightly for performance
-            mixValue += mixDirection * 0.01;
-            if (mixValue >= 1.0) { mixValue = 1.0; mixDirection = -1; }
-            if (mixValue <= 0.0) { mixValue = 0.0; mixDirection = 1; }
-            
-            document.getElementById('mix-slider').value = mixValue;
-            document.getElementById('mix-display').innerText = Math.round(mixValue * 100) + '%';
-            
-            updateIsoSurface();
-            lastTime = time;
-        }
+        // We can rotate the hybrid scene slightly for a nice effect
+        scene.rotation.y += 0.005;
+        scene.rotation.x += 0.002;
+    } else {
+        scene.rotation.set(0, 0, 0);
     }
     
     controls.update();
