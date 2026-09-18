@@ -148,14 +148,14 @@ function rebuildCrystal() {
             // Draw Hexagon base and top
             [0, 1].forEach(dz => {
                 const hexPts = [
-                    [1,0,z+dz], [0,1,z+dz], [-1,1,z+dz], [-1,0,z+dz], [0,-1,z+dz], [1,-1,z+dz], [1,0,z+dz]
+                    [1,0,z+dz], [1,1,z+dz], [0,1,z+dz], [-1,0,z+dz], [-1,-1,z+dz], [0,-1,z+dz], [1,0,z+dz]
                 ];
                 const linePts = hexPts.map(p => fracToCartesian(p[0], p[1], p[2]));
                 const geo = new THREE.BufferGeometry().setFromPoints(linePts);
                 cellLinesGroup.add(new THREE.Line(geo, lineMat));
             });
             // Draw 6 vertical pillars
-            const pillars = [[1,0], [0,1], [-1,1], [-1,0], [0,-1], [1,-1]];
+            const pillars = [[1,0], [1,1], [0,1], [-1,0], [-1,-1], [0,-1]];
             pillars.forEach(p => {
                 const p1 = fracToCartesian(p[0], p[1], z);
                 const p2 = fracToCartesian(p[0], p[1], z+1);
@@ -219,15 +219,15 @@ function rebuildCrystal() {
                 // 6 corners of hexagon
                 positions.add(`1,0,${z}`);
                 positions.add(`0,1,${z}`);
-                positions.add(`-1,1,${z}`);
+                positions.add(`1,1,${z}`);
                 positions.add(`-1,0,${z}`);
                 positions.add(`0,-1,${z}`);
-                positions.add(`1,-1,${z}`);
+                positions.add(`-1,-1,${z}`);
                 
                 // 3 inner atoms (at z+0.5)
                 if (z < S) {
                     positions.add(`${1/3},${2/3},${z+0.5}`);
-                    positions.add(`${-2/3},${1/3},${z+0.5}`);
+                    positions.add(`${-2/3},${-1/3},${z+0.5}`);
                     positions.add(`${1/3},${-1/3},${z+0.5}`);
                 }
             }
