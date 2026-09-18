@@ -1,3 +1,10 @@
+
+window.addEventListener('error', function(e) {
+    alert('Global Error: ' + e.message + ' at line ' + e.lineno);
+});
+window.addEventListener('unhandledrejection', function(e) {
+    alert('Unhandled Promise Rejection: ' + e.reason);
+});
 let RDKitModule = null;
 let currentMol = null;
 let currentSmiles = '';
@@ -10,14 +17,24 @@ let obReady = false;
 let ObInstance = null;
 
 function initOpenBabel() {
-    if (typeof OpenBabelModule !== 'function') return;
-    try {
-        const ob = OpenBabelModule();
-        ob.onRuntimeInitialized = function () {
-            ObInstance = ob;
-            obReady = true;
-        };
-    } catch (e) {}
+    if (window.OpenBabelModule || obReady) return;
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/gh/partridgejiang/cheminfo-to-web@master/OpenBabel3/OpenBabel-js/bin/openbabel.js';
+    script.onload = () => {
+        if (typeof OpenBabelModule === 'function') {
+            try {
+                const ob = OpenBabelModule();
+                ob.onRuntimeInitialized = function () {
+                    ObInstance = ob;
+                    obReady = true;
+                    console.log('OpenBabel initialized.');
+                };
+            } catch (e) {
+                console.error('OpenBabel init error', e);
+            }
+        }
+    };
+    document.body.appendChild(script);
 }
 
 function gen3DWithOpenBabel(molblock2d) {
@@ -142,13 +159,13 @@ function detectFunctionalGroups(mol) {
         try {
             const qmol = RDKitModule.get_qmol(fg.smarts);
             if (qmol && qmol.is_valid()) {
-                const match = JSON.parse(mol.get_substruct_match(qmol));
-                if (match && match.atoms && match.atoms.length > 0) {
+                const matchStr = mol.get_substruct_matches(qmol);
+                if (matchStr && matchStr !== '{}' && matchStr !== '[]') {
                     found.push(fg.name);
                 }
                 qmol.delete();
             }
-        } catch (e) {}
+        } catch (e) { console.error("Error matching FG:", fg.name, e); }
     });
     return found;
 }
@@ -302,12 +319,19 @@ function updateLocalUI(smiles, title, cidText) {
     document.getElementById('viewer-3d-wrap').innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">Menyiapkan model 3D...</div>';
     
     // Try to render 3D instantly using OpenBabel WASM
-    const molblock2d = currentMol.get_molblock();
-    const ob3D = gen3DWithOpenBabel(molblock2d);
-    if (ob3D) {
-        currentSDF = ob3D;
-        render3D(ob3D);
-    }
+    try {
+        let molblock2d = '';
+        if (currentMol.get_molblock) {
+            molblock2d = currentMol.get_molblock();
+        }
+        if (molblock2d) {
+            const ob3D = gen3DWithOpenBabel(molblock2d);
+            if (ob3D) {
+                currentSDF = ob3D;
+                render3D(ob3D);
+            }
+        }
+    } catch(e) { console.error('OpenBabel 3D sync crash', e); }
 }
 
 function render3DEmpty() {
@@ -410,61 +434,78 @@ function render2D() {
         return;
     }
     
-    const atomsToHighlight = new Set();
-    const atomColors = {};
-    const COLOR_HBD = [0.26, 0.60, 0.88];
-    const COLOR_HBA = [0.89, 0.41, 0.35];
-    const COLOR_ROTB = [0.91, 0.70, 0.22];
-    const COLOR_AROM = [0.28, 0.73, 0.47];
+    try {
+        const atomsToHighlight = new Set();
+        const atomColors = {};
+        const COLOR_HBD = [0.26, 0.60, 0.88];
+        const COLOR_HBA = [0.89, 0.41, 0.35];
+        const COLOR_ROTB = [0.91, 0.70, 0.22];
+        const COLOR_AROM = [0.28, 0.73, 0.47];
 
-    function addMatches(smarts, color) {
-        try {
-            const q = RDKitModule.get_qmol(smarts);
-            if (q && q.is_valid()) {
-                const matchesStr = currentMol.get_substruct_matches(q);
-                if (matchesStr !== '{}') {
-                    const matches = JSON.parse(matchesStr);
-                    matches.forEach(m => {
-                        m.atoms.forEach(idx => {
-                            atomsToHighlight.add(idx);
-                            atomColors[idx] = color;
+        function addMatches(smarts, color) {
+            try {
+                const q = RDKitModule.get_qmol(smarts);
+                if (q && q.is_valid()) {
+                    const matchesStr = currentMol.get_substruct_matches(q);
+                    if (matchesStr && matchesStr !== '{}') {
+                        const matches = JSON.parse(matchesStr);
+                        matches.forEach(m => {
+                            if (m.atoms) {
+                                m.atoms.forEach(idx => {
+                                    atomsToHighlight.add(idx);
+                                    atomColors[idx] = color;
+                                });
+                            }
                         });
-                    });
+                    }
+                    q.delete();
                 }
-                q.delete();
-            }
-        } catch(e){}
-    }
-
-    const chks = document.querySelectorAll('.hl-chk');
-    let hasHighlight = false;
-    chks.forEach(chk => {
-        if (chk.checked) {
-            hasHighlight = true;
-            if (chk.dataset.hl === 'hdonor') addMatches('[!#6;!H0]', COLOR_HBD);
-            if (chk.dataset.hl === 'hacceptor') addMatches('[$([O,S;H1;v2]-[!$(*=[O,N,P,S])]),$([O,S;H0;v2]),$([O,S;-]),$([N;v3;!$(N-*=!@[O,N,P,S])]),$([nH0,o,s;+0])]', COLOR_HBA);
-            if (chk.dataset.hl === 'rotatable') addMatches('[!$(*#*)&!D1]-&!@[!$(*#*)&!D1]', COLOR_ROTB);
-            if (chk.dataset.hl === 'aromatic') addMatches('a', COLOR_AROM);
+            } catch(e){ console.error(e); }
         }
-    });
 
-    let svg = '';
-    if (hasHighlight && atomsToHighlight.size > 0) {
-        const details = JSON.stringify({
-            width: 380,
-            height: 380,
-            atoms: Array.from(atomsToHighlight),
-            bonds: [],
-            highlightAtomColors: atomColors,
-            highlightRadius: 0.35,
-            drawOptions: { bondLineWidth: 2.2 }
+        const chks = document.querySelectorAll('.hl-chk');
+        let hasHighlight = false;
+        chks.forEach(chk => {
+            if (chk.checked) {
+                hasHighlight = true;
+                if (chk.dataset.hl === 'hdonor') addMatches('[!#6;!H0]', COLOR_HBD);
+                if (chk.dataset.hl === 'hacceptor') addMatches('[$([O,S;H1;v2]-[!$(*=[O,N,P,S])]),$([O,S;H0;v2]),$([O,S;-]),$([N;v3;!$(N-*=!@[O,N,P,S])]),$([nH0,o,s;+0])]', COLOR_HBA);
+                if (chk.dataset.hl === 'rotatable') addMatches('[!$(*#*)&!D1]-&!@[!$(*#*)&!D1]', COLOR_ROTB);
+                if (chk.dataset.hl === 'aromatic') addMatches('a', COLOR_AROM);
+            }
         });
-        svg = currentMol.get_svg_with_highlights(details);
-    } else {
-        svg = currentMol.get_svg(380, 380);
+
+        let svg = '';
+        if (hasHighlight && atomsToHighlight.size > 0) {
+            const details = JSON.stringify({
+                width: 380,
+                height: 380,
+                atoms: Array.from(atomsToHighlight),
+                bonds: [],
+                highlightAtomColors: atomColors,
+                highlightRadius: 0.35,
+                drawOptions: { bondLineWidth: 2.2 }
+            });
+            try {
+                svg = currentMol.get_svg_with_highlights(details);
+            } catch(e) {
+                console.error('get_svg_with_highlights failed', e);
+                svg = currentMol.get_svg(380, 380) || currentMol.get_svg();
+            }
+        } else {
+            try {
+                svg = currentMol.get_svg(380, 380);
+            } catch(e) {
+                console.error('get_svg(w, h) failed, trying get_svg()', e);
+                svg = currentMol.get_svg();
+            }
+        }
+        
+        document.getElementById('svg-wrap').innerHTML = svg;
+    } catch(e) {
+        console.error('render2D global crash', e);
+        document.getElementById('svg-wrap').innerHTML = '<div class="text-red-500 p-4">Error merender 2D</div>';
     }
-    
-    document.getElementById('svg-wrap').innerHTML = svg;
 }
 
 // ------------------------------------------------------------------
