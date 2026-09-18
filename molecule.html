@@ -89,112 +89,139 @@
         </div>
 
         <!-- Results Section (Hidden initially) -->
-        <div id="results-section" class="hidden">
+        <div id="results-section" class="hidden space-y-6">
+    
+    <!-- Title & Basic Info -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <h2 id="res-title" class="text-3xl font-bold text-slate-800">-</h2>
+            <span id="res-cid" class="text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">CID: -</span>
+        </div>
+        <p id="res-smiles" class="text-slate-500 font-mono text-sm break-all">-</p>
+    </div>
+
+    <!-- Metric Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">LogP</div>
+            <div id="m-logp" class="text-xl font-bold text-slate-800">-</div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">H-Bond Donor</div>
+            <div id="m-hbd" class="text-xl font-bold text-slate-800">-</div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">H-Bond Acceptor</div>
+            <div id="m-hba" class="text-xl font-bold text-slate-800">-</div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">TPSA</div>
+            <div id="m-tpsa" class="text-xl font-bold text-slate-800">-</div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">Rotatable Bonds</div>
+            <div id="m-rotb" class="text-xl font-bold text-slate-800">-</div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+            <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">Monoisotopic Mass</div>
+            <div id="m-mass" class="text-xl font-bold text-slate-800">-</div>
+        </div>
+    </div>
+
+    <!-- Lipinski Rule of 5 Cards -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-pills text-rose-500"></i> Analisis Drug-likeness (Aturan Lipinski & Veber)</h3>
+            <span id="lipinski-verdict" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">Drug-like (0 Pelanggaran)</span>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-3" id="lipinski-cards">
+            <!-- Injected by JS -->
+        </div>
+    </div>
+
+    <!-- Viz Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- 2D Viewer -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+            <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700 flex justify-between items-center">
+                <span class="text-sm tracking-wider uppercase">Struktur Molekul</span>
+                <button id="btn-dl-2d" class="text-[10px] px-2 py-1 bg-white border border-slate-300 rounded font-bold text-slate-600 hover:bg-slate-50" title="Download SVG">SVG</button>
+            </div>
             
-            <!-- Title & Basic Info -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
-                <div class="flex items-center gap-3 mb-2">
-                    <h2 id="res-title" class="text-3xl font-bold text-slate-800">Aspirin</h2>
-                    <span id="res-cid" class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded border border-blue-200">CID: 2244</span>
-                </div>
-                <div class="text-slate-500 font-mono text-sm break-all" id="res-smiles">CC(=O)OC1=CC=CC=C1C(=O)O</div>
+            <div class="px-4 py-3 border-b border-slate-100 flex flex-wrap gap-3 items-center text-[11px] font-mono bg-slate-50/50">
+                <span class="text-slate-500">Penyorot:</span>
+                <label class="flex items-center gap-1.5 cursor-pointer px-2 py-1 bg-white border border-slate-200 rounded-full hover:bg-slate-50 transition-colors">
+                    <input type="checkbox" class="hl-chk" data-hl="hdonor"> <span class="w-3 h-3 rounded-full bg-[#4299e1]"></span> H-Donor
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer px-2 py-1 bg-white border border-slate-200 rounded-full hover:bg-slate-50 transition-colors">
+                    <input type="checkbox" class="hl-chk" data-hl="hacceptor"> <span class="w-3 h-3 rounded-full bg-[#e53e3e]"></span> H-Acceptor
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer px-2 py-1 bg-white border border-slate-200 rounded-full hover:bg-slate-50 transition-colors">
+                    <input type="checkbox" class="hl-chk" data-hl="rotatable"> <span class="w-3 h-3 rounded-full bg-[#ecc94b]"></span> Rotatable
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer px-2 py-1 bg-white border border-slate-200 rounded-full hover:bg-slate-50 transition-colors">
+                    <input type="checkbox" class="hl-chk" data-hl="aromatic"> <span class="w-3 h-3 rounded-full bg-[#48bb78]"></span> Aromatic
+                </label>
             </div>
 
-            <!-- Viz Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                
-                <!-- 2D Viewer -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700 flex justify-between items-center">
-                        <span><i class="fa-solid fa-draw-polygon mr-2"></i>Struktur 2D (RDKit)</span>
-                        <button id="btn-dl-2d" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50" title="Download SVG"><i class="fa-solid fa-download"></i> SVG</button>
-                    </div>
-                    <div class="p-4 flex-1 flex flex-col">
-                        <div id="svg-wrap" class="svg-container flex-1 bg-white border border-slate-100 rounded mb-4"></div>
-                        <div class="flex flex-wrap gap-2 justify-center text-sm">
-                            <button class="hl-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-blue-100 data-[active=true]:border-blue-300 data-[active=true]:text-blue-800 transition-colors" data-hl="none">Normal</button>
-                            <button class="hl-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-blue-100 data-[active=true]:border-blue-300 data-[active=true]:text-blue-800 transition-colors" data-hl="hdonor">H-Donor</button>
-                            <button class="hl-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-blue-100 data-[active=true]:border-blue-300 data-[active=true]:text-blue-800 transition-colors" data-hl="hacceptor">H-Acceptor</button>
-                            <button class="hl-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-blue-100 data-[active=true]:border-blue-300 data-[active=true]:text-blue-800 transition-colors" data-hl="rotatable">Rotatable Bonds</button>
-                            <button class="hl-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-blue-100 data-[active=true]:border-blue-300 data-[active=true]:text-blue-800 transition-colors" data-hl="aromatic">Aromatic Rings</button>
-                        </div>
-                    </div>
-                </div>
+            <div class="p-4 flex-1 flex flex-col items-center justify-center min-h-[350px]">
+                <div id="svg-wrap" class="w-full flex items-center justify-center"></div>
+            </div>
+        </div>
 
-                <!-- 3D Viewer -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700 flex justify-between items-center">
-                        <span><i class="fa-solid fa-cube mr-2"></i>Struktur 3D (PubChem)</span>
-                        <div class="flex gap-2">
-                            <button id="btn-dl-mol" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50" title="Download MOL"><i class="fa-solid fa-download"></i> MOL</button>
-                            <button id="btn-dl-png" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50" title="Download Image"><i class="fa-solid fa-camera"></i> PNG</button>
-                            <div class="w-px bg-slate-300 mx-1"></div>
-                            <button id="btn-spin" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-rotate mr-1"></i>Spin</button>
-                            <button id="btn-reset" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-expand mr-1"></i>Reset</button>
-                        </div>
-                    </div>
-                    <div class="p-4 flex-1 flex flex-col">
-                        <div id="viewer-3d-wrap" class="flex-1 bg-slate-900 border border-slate-100 rounded mb-4 relative" style="min-height: 300px; height: 100%;">
-                        </div>
-                        <div class="flex flex-wrap gap-2 justify-center text-sm">
-                            <button class="style-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-emerald-100 data-[active=true]:border-emerald-300 data-[active=true]:text-emerald-800 transition-colors" data-style="stick">Stick</button>
-                            <button class="style-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-emerald-100 data-[active=true]:border-emerald-300 data-[active=true]:text-emerald-800 transition-colors" data-style="sphere">Sphere (vdW)</button>
-                            <button class="style-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-emerald-100 data-[active=true]:border-emerald-300 data-[active=true]:text-emerald-800 transition-colors" data-style="cross">Cross</button>
-                        </div>
-                    </div>
+        <!-- 3D Viewer -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+            <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700 flex justify-between items-center">
+                <span class="text-sm tracking-wider uppercase">Struktur 3D</span>
+                <div class="flex gap-2">
+                    <button id="btn-dl-mol" class="text-[10px] font-bold px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50" title="Download MOL">MOL</button>
+                    <button id="btn-dl-png" class="text-[10px] font-bold px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50" title="Download Image">PNG</button>
                 </div>
             </div>
-
-            <!-- Properties Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Physchem -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700">
-                        <i class="fa-solid fa-flask-vial mr-2"></i>Sifat Fisika & Kimia
-                    </div>
-                    <div class="p-0 overflow-x-auto">
-                        <table class="prop-table w-full text-sm">
-                            <tbody id="table-physchem">
-                                <!-- Populated by JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Lipinski / Drug Likeness -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700">
-                        <i class="fa-solid fa-pills mr-2"></i>Drug-likeness (Lipinski's Rule of 5)
-                    </div>
-                    <div class="p-0 overflow-x-auto">
-                        <table class="prop-table w-full text-sm">
-                            <tbody id="table-lipinski">
-                                <!-- Populated by JS -->
-                            </tbody>
-                        </table>
-                        <div id="lipinski-verdict" class="p-4 text-sm font-medium border-t border-slate-200">
-                            <!-- Verdict -->
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- GHS Hazards -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden md:col-span-2">
-                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700">
-                        <i class="fa-solid fa-triangle-exclamation mr-2 text-amber-500"></i>Keselamatan & Bahaya (GHS)
-                    </div>
-                    <div class="p-4">
-                        <div id="ghs-pictograms" class="flex gap-4 mb-4 flex-wrap">
-                            <!-- Populated by JS -->
-                        </div>
-                        <div id="ghs-statements" class="text-sm text-slate-600 space-y-1">
-                            <!-- Populated by JS -->
-                        </div>
-                    </div>
-                </div>
+            
+            <div class="px-4 py-3 border-b border-slate-100 flex flex-wrap gap-2 items-center text-[11px] font-mono bg-slate-50/50">
+                <button class="style-btn px-2 py-1 bg-white border border-slate-200 rounded-full data-[active=true]:bg-slate-200 transition-colors" data-style="stick"><i class="fa-solid fa-circle-half-stroke"></i> Stick+Sphere</button>
+                <button class="style-btn px-2 py-1 bg-white border border-slate-200 rounded-full data-[active=true]:bg-slate-200 transition-colors" data-style="sphere"><i class="fa-solid fa-circle"></i> Space-filling</button>
+                <div class="w-px h-4 bg-slate-300 mx-1"></div>
+                <button id="btn-spin" class="px-2 py-1 bg-white border border-slate-200 rounded-full hover:bg-slate-100"><i class="fa-solid fa-rotate"></i> Putar</button>
+                <button id="btn-reset" class="px-2 py-1 bg-white border border-slate-200 rounded-full hover:bg-slate-100"><i class="fa-solid fa-expand"></i> Reset</button>
             </div>
 
-        </div> <!-- End Results -->
+            <div class="flex-1 flex flex-col p-4 bg-slate-50">
+                <div id="viewer-3d-wrap" class="flex-1 bg-[#0f172a] rounded-lg shadow-inner overflow-hidden relative" style="min-height: 350px;">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Physchem & GHS Hazards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700 text-sm tracking-wider uppercase">
+                Sifat Fisika & Kimia (PubChem)
+            </div>
+            <div class="p-0 overflow-x-auto">
+                <table class="prop-table w-full text-sm">
+                    <tbody id="table-physchem">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700 text-sm tracking-wider uppercase">
+                Keselamatan, Bahaya GHS
+            </div>
+            <div class="p-5 flex flex-col items-start gap-4">
+                <div id="ghs-pictograms" class="flex gap-4 flex-wrap">
+                </div>
+                <div id="ghs-statements" class="text-sm text-slate-600 space-y-1">
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div> <!-- End Results -->
 
     </div>
 

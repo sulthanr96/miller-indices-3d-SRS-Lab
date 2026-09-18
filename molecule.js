@@ -1,119 +1,18 @@
 let RDKitModule = null;
 let viewer3D = null;
-let currentMol = null; // RDKit molecule object
+let currentMol = null;
 let currentSmiles = '';
 let currentSDF = '';
+let viewer3D = null;
+let isSpinning = false;
 
+// ------------------------------------------------------------------
+// Fetch & Process Search (Local Parsing first)
+// ------------------------------------------------------------------
 const PUG = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug';
 const PUG_VIEW = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug_view';
 
-// Initialize RDKit
-window.initRDKitModule().then(function(instance) {
-    RDKitModule = instance;
-    console.log('RDKit version: ' + RDKitModule.version());
-}).catch(e => {
-    console.error('RDKit initialization failed', e);
-});
-
-// UI Elements
-const searchBtn = document.getElementById('search-btn');
-const searchInput = document.getElementById('search-input');
-const drawBtn = document.getElementById('draw-btn');
-const jsmeModal = document.getElementById('jsme-modal');
-const closeJsmeBtn = document.getElementById('close-jsme-btn');
-const jsmeCancelBtn = document.getElementById('jsme-cancel-btn');
-const jsmeApplyBtn = document.getElementById('jsme-apply-btn');
-const resultsSection = document.getElementById('results-section');
 const loadingOverlay = document.getElementById('loading-overlay');
-
-// JSME Applet reference
-let jsmeApplet = null;
-
-// Initialize JSME when modal opens (lazy loading)
-function initJSME() {
-    if (!jsmeApplet) {
-        jsmeApplet = new JSApplet.JSME("jsme_container", "100%", "400px", {
-            options: "oldlook,star,atommovebutton,smiles,hydrogens"
-        });
-    }
-}
-
-drawBtn.addEventListener('click', () => {
-    jsmeModal.classList.remove('hidden');
-    initJSME();
-    if (currentSmiles) {
-        jsmeApplet.readSMILES(currentSmiles);
-    } else {
-        jsmeApplet.reset();
-    }
-});
-
-function closeJsme() {
-    jsmeModal.classList.add('hidden');
-}
-
-closeJsmeBtn.addEventListener('click', closeJsme);
-jsmeCancelBtn.addEventListener('click', closeJsme);
-
-jsmeApplyBtn.addEventListener('click', () => {
-    const smiles = jsmeApplet.smiles();
-    if (smiles) {
-        searchInput.value = smiles;
-        closeJsme();
-        processSearch(smiles);
-    } else {
-        alert('Struktur kosong. Silakan gambar sesuatu terlebih dahulu.');
-    }
-});
-
-searchBtn.addEventListener('click', () => {
-    if (searchInput.value.trim()) {
-        processSearch(searchInput.value.trim());
-    }
-});
-
-searchInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && searchInput.value.trim()) {
-        processSearch(searchInput.value.trim());
-    }
-});
-
-// Highlight Buttons
-document.querySelectorAll('.hl-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.hl-btn').forEach(b => b.dataset.active = 'false');
-        e.target.dataset.active = 'true';
-        render2D(e.target.dataset.hl);
-    });
-});
-
-// 3D Style Buttons
-document.querySelectorAll('.style-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.style-btn').forEach(b => b.dataset.active = 'false');
-        e.target.dataset.active = 'true';
-        set3DStyle(e.target.dataset.style);
-    });
-});
-
-// 3D Controls
-document.getElementById('btn-spin').addEventListener('click', () => {
-    if (viewer3D) {
-        viewer3D.spin(true);
-        setTimeout(() => viewer3D.spin(false), 3000); // spin for 3 seconds
-    }
-});
-
-document.getElementById('btn-reset').addEventListener('click', () => {
-    if (viewer3D) {
-        viewer3D.zoomTo();
-    }
-});
-
-// ------------------------------------------------------------------
-// Main Logic
-// ------------------------------------------------------------------
-
 function showLoading(text) {
     document.getElementById('loading-text').innerText = text;
     loadingOverlay.style.display = 'flex';
@@ -127,20 +26,154 @@ async function processSearch(query) {
         alert("RDKit is still loading, please wait a moment.");
         return;
     }
-    showLoading("Mencari senyawa di PubChem...");
+    
+    document.getElementById('results-section').classList.add('hidden');
+    currentSDF = '';
+    
+    let mol = null;
     try {
-        const cid = await resolveCID(query);
-        if (!cid) throw new Error('Senyawa tidak ditemukan di PubChem.');
+        mol = RDKitModule.get_mol(query);
+    } catch(e) {}
+    
+    if (mol && mol.is_valid()) {
+        currentSmiles = query;
+        if (currentMol) currentMol.delete();
+        currentMol = mol;
         
-        showLoading("Mengunduh data dan struktur 3D...");
-        await fetchCompoundDetails(cid, query);
+        updateLocalUI(query, "Struktur Kustom", "Tidak Terdaftar");
         
-        resultsSection.classList.remove('hidden');
+        resolveCID(query).then(cid => {
+            if (cid) {
+                document.getElementById('res-cid').innerText = `CID: ${cid}`;
+                fetchExtraData(cid);
+            } else {
+                render3DEmpty();
+                populateGHS([]);
+                populatePhysChem({});
+            }
+        });
+        
+    } else {
+        showLoading("Mencari senyawa di PubChem...");
+        try {
+            const cid = await resolveCID(query);
+            if (!cid) throw new Error('Senyawa tidak ditemukan di PubChem atau SMILES tidak valid.');
+            
+            const fields = 'CanonicalSMILES,IsomericSMILES,Title';
+            const propData = await fetchJson(`${PUG}/compound/cid/${cid}/property/${fields}/JSON`);
+            const props = propData.PropertyTable.Properties[0];
+            
+            currentSmiles = props.CanonicalSMILES || props.IsomericSMILES || '';
+            if (!currentSmiles) throw new Error('SMILES tidak tersedia dari PubChem.');
+            
+            if (currentMol) currentMol.delete();
+            currentMol = RDKitModule.get_mol(currentSmiles);
+            
+            updateLocalUI(currentSmiles, props.Title || query, cid);
+            fetchExtraData(cid);
+            
+        } catch (e) {
+            alert(e.message);
+        } finally {
+            hideLoading();
+        }
+    }
+}
+
+function updateLocalUI(smiles, title, cidText) {
+    document.getElementById('results-section').classList.remove('hidden');
+    document.getElementById('res-title').innerText = title;
+    document.getElementById('res-cid').innerText = typeof cidText === 'number' ? `CID: ${cidText}` : cidText;
+    document.getElementById('res-smiles').innerText = smiles;
+    
+    let mw = 0, exact = 0, logp = 0, tpsa = 0, hbd = 0, hba = 0, rotb = 0;
+    try {
+        const desc = JSON.parse(currentMol.get_descriptors());
+        mw = desc.amw || 0;
+        exact = desc.exactmw || 0;
+        logp = desc.CrippenClogP || 0;
+        tpsa = desc.tpsa || 0;
+        hbd = desc.NumHBD || 0;
+        hba = desc.NumHBA || 0;
+        rotb = desc.NumRotatableBonds || 0;
+    } catch(e) {}
+    
+    document.getElementById('m-logp').innerText = logp.toFixed(2);
+    document.getElementById('m-hbd').innerText = hbd;
+    document.getElementById('m-hba').innerText = hba;
+    document.getElementById('m-tpsa').innerText = tpsa.toFixed(1);
+    document.getElementById('m-rotb').innerText = rotb;
+    document.getElementById('m-mass').innerText = exact.toFixed(4);
+    
+    let violations = 0;
+    if (mw > 500) violations++;
+    if (logp > 5) violations++;
+    if (hbd > 5) violations++;
+    if (hba > 10) violations++;
+    
+    const lipHtml = `
+        <div class="bg-slate-50 border border-slate-200 rounded p-2 flex flex-col justify-between h-full">
+            <div class="text-[9px] uppercase tracking-wider text-slate-500 mb-1">MW &le; 500</div>
+            <div class="${mw <= 500 ? 'text-emerald-600' : 'text-red-500'} font-bold font-mono">${mw.toFixed(2)}</div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded p-2 flex flex-col justify-between h-full">
+            <div class="text-[9px] uppercase tracking-wider text-slate-500 mb-1">LogP &le; 5.0</div>
+            <div class="${logp <= 5 ? 'text-emerald-600' : 'text-red-500'} font-bold font-mono">${logp.toFixed(2)}</div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded p-2 flex flex-col justify-between h-full">
+            <div class="text-[9px] uppercase tracking-wider text-slate-500 mb-1">HBD &le; 5</div>
+            <div class="${hbd <= 5 ? 'text-emerald-600' : 'text-red-500'} font-bold font-mono">${hbd}</div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded p-2 flex flex-col justify-between h-full">
+            <div class="text-[9px] uppercase tracking-wider text-slate-500 mb-1">HBA &le; 10</div>
+            <div class="${hba <= 10 ? 'text-emerald-600' : 'text-red-500'} font-bold font-mono">${hba}</div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded p-2 flex flex-col justify-between h-full">
+            <div class="text-[9px] uppercase tracking-wider text-slate-500 mb-1">RotB &le; 10</div>
+            <div class="${rotb <= 10 ? 'text-emerald-600' : 'text-amber-500'} font-bold font-mono">${rotb}</div>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 rounded p-2 flex flex-col justify-between h-full">
+            <div class="text-[9px] uppercase tracking-wider text-slate-500 mb-1">TPSA &le; 140</div>
+            <div class="${tpsa <= 140 ? 'text-emerald-600' : 'text-amber-500'} font-bold font-mono">${tpsa.toFixed(1)}</div>
+        </div>
+    `;
+    document.getElementById('lipinski-cards').innerHTML = lipHtml;
+    
+    const verdict = document.getElementById('lipinski-verdict');
+    if (violations === 0) {
+        verdict.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200";
+        verdict.innerText = "Drug-like (0 Pelanggaran)";
+    } else if (violations === 1) {
+        verdict.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200";
+        verdict.innerText = "1 Pelanggaran (Cukup Layak)";
+    } else {
+        verdict.className = "px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200";
+        verdict.innerText = `${violations} Pelanggaran`;
+    }
+    
+    document.querySelectorAll('.hl-chk').forEach(c => c.checked = false);
+    render2D();
+    document.getElementById('viewer-3d-wrap').innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">Mengunduh 3D...</div>';
+}
+
+function render3DEmpty() {
+    document.getElementById('viewer-3d-wrap').innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm italic">Struktur 3D tidak tersedia.</div>';
+}
+
+async function fetchExtraData(cid) {
+    try {
+        const [sdfText, ghsData, propData] = await Promise.all([
+            fetch(`${PUG}/compound/cid/${cid}/SDF?record_type=3d`).then(r => r.ok ? r.text() : fetch(`${PUG}/compound/cid/${cid}/SDF`).then(r => r.text())),
+            fetchPugViewHeading(cid, 'GHS Classification'),
+            fetchJson(`${PUG}/compound/cid/${cid}/property/MolecularFormula,MolecularWeight/JSON`)
+        ]);
+        currentSDF = sdfText;
+        render3D(sdfText);
+        populateGHS(ghsData);
+        populatePhysChem(propData.PropertyTable.Properties[0]);
     } catch (e) {
-        alert(e.message);
-        console.error(e);
-    } finally {
-        hideLoading();
+        render3DEmpty();
+        populateGHS([]);
     }
 }
 
@@ -151,29 +184,15 @@ async function fetchJson(url) {
 }
 
 async function resolveCID(raw) {
-    // 1. Direct CID
     if (/^\d+$/.test(raw)) return parseInt(raw, 10);
-    
-    // 2. InChIKey
     if (/^[A-Z]{14}-[A-Z]{10}-[A-Z0-9]$/i.test(raw)) {
-        try { const data = await fetchJson(`${PUG}/compound/inchikey/${encodeURIComponent(raw)}/cids/JSON`);
-        return data.IdentifierList.CID[0]; } catch(e){}
+        try { const data = await fetchJson(`${PUG}/compound/inchikey/${encodeURIComponent(raw)}/cids/JSON`); return data.IdentifierList.CID[0]; } catch(e){}
     }
-    
-    // 3. FastFormula
     if (/^[A-Za-z0-9]+$/.test(raw) && /\d/.test(raw) && /[A-Z]/.test(raw)) {
-        try { const data = await fetchJson(`${PUG}/compound/fastformula/${encodeURIComponent(raw)}/cids/JSON`);
-        return data.IdentifierList.CID[0]; } catch(e){}
+        try { const data = await fetchJson(`${PUG}/compound/fastformula/${encodeURIComponent(raw)}/cids/JSON`); return data.IdentifierList.CID[0]; } catch(e){}
     }
-    
-    // 4. Name
-    try { const data = await fetchJson(`${PUG}/compound/name/${encodeURIComponent(raw)}/cids/JSON`);
-    return data.IdentifierList.CID[0]; } catch(e) {}
-    
-    // 5. SMILES
-    try { const data = await fetchJson(`${PUG}/compound/smiles/${encodeURIComponent(raw)}/cids/JSON`);
-    return data.IdentifierList.CID[0]; } catch(e) {}
-    
+    try { const data = await fetchJson(`${PUG}/compound/name/${encodeURIComponent(raw)}/cids/JSON`); return data.IdentifierList.CID[0]; } catch(e) {}
+    try { const data = await fetchJson(`${PUG}/compound/smiles/${encodeURIComponent(raw)}/cids/JSON`); return data.IdentifierList.CID[0]; } catch(e) {}
     return null;
 }
 
@@ -187,119 +206,64 @@ async function fetchPugViewHeading(cid, heading) {
     } catch (e) { return []; }
 }
 
-async function fetchCompoundDetails(cid, originalQuery) {
-    const fields = 'CanonicalSMILES,IsomericSMILES,Title,MolecularFormula,MolecularWeight,XLogP,ExactMass,TPSA,Complexity,HeavyAtomCount,RotatableBondCount,HBondDonorCount,HBondAcceptorCount';
-    
-    const [propData, sdfText, ghsData, physData] = await Promise.all([
-        fetchJson(`${PUG}/compound/cid/${cid}/property/${fields}/JSON`),
-        fetch(`${PUG}/compound/cid/${cid}/SDF?record_type=3d`).then(r => r.ok ? r.text() : fetch(`${PUG}/compound/cid/${cid}/SDF`).then(r => r.text())),
-        fetchPugViewHeading(cid, 'GHS Classification'),
-        fetchPugViewHeading(cid, 'Chemical and Physical Properties')
-    ]);
-
-    const props = propData.PropertyTable.Properties[0];
-    currentSmiles = props.CanonicalSMILES || props.IsomericSMILES || '';
-    currentSDF = sdfText;
-    
-    // Update Header
-    document.getElementById('res-title').innerText = props.Title || originalQuery;
-    document.getElementById('res-cid').innerText = `CID: ${props.CID || cid}`;
-    document.getElementById('res-smiles').innerText = currentSmiles || 'SMILES tidak tersedia';
-    
-    // Prepare RDKit Mol
-    if (currentMol) currentMol.delete();
-    if (currentSmiles) {
-        currentMol = RDKitModule.get_mol(currentSmiles);
-    } else {
-        currentMol = null;
-    }
-    
-    // Reset highlighter
-    document.querySelectorAll('.hl-btn').forEach(b => b.dataset.active = 'false');
-    document.querySelector('.hl-btn[data-hl="none"]').dataset.active = 'true';
-    
-    // Render 2D & 3D
-    render2D('none');
-    render3D(sdfText);
-    
-    // Populate Tables
-    populatePhysChem(props);
-    populateLipinski(props);
-    populateGHS(ghsData);
-}
-
 // ------------------------------------------------------------------
-// Render 2D SVG with Highlighting
+// RDKit 2D Rendering
 // ------------------------------------------------------------------
-function render2D(highlightMode) {
+function render2D() {
     if (!currentMol) {
         document.getElementById('svg-wrap').innerHTML = '<div class="flex items-center justify-center h-full text-slate-400 italic">2D tidak tersedia</div>';
         return;
     }
     
-    let details = {};
-    if (highlightMode !== 'none') {
-        let smarts = '';
-        switch(highlightMode) {
-            case 'hdonor': smarts = '[!#6;!H0]'; break; // simplified
-            case 'hacceptor': smarts = '[$([O,S;H1;v2]-[!$(*=[O,N,P,S])]),$([O,S;H0;v2]),$([O,S;-]),$([N;v3;!$(N-*=!@[O,N,P,S])]),$([nH0,o,s;+0])]' ; break; 
-            case 'rotatable': smarts = '[!$(*#*)&!D1]-&!@[!$(*#*)&!D1]'; break;
-            case 'aromatic': smarts = 'a'; break;
-        }
-        
-        if (smarts) {
+    const atomsToHighlight = new Set();
+    const atomColors = {};
+    const COLOR_HBD = [0.26, 0.60, 0.88];
+    const COLOR_HBA = [0.89, 0.41, 0.35];
+    const COLOR_ROTB = [0.91, 0.70, 0.22];
+    const COLOR_AROM = [0.28, 0.73, 0.47];
+
+    function addMatches(smarts, color) {
+        try {
             const q = RDKitModule.get_qmol(smarts);
-            if (q) {
-                const matches = currentMol.get_substruct_match(q);
-                if (matches !== '{}') {
-                    const matchArr = JSON.parse(matches);
-                    const atoms = [];
-                    // RDKit get_substruct_match returns an array of matched atoms if single match, 
-                    // or array of arrays if multiple? Wait, it returns a single match. get_substruct_matches returns multiple.
-                    // Let's use get_substruct_matches if available, else fallback
-                    let allMatches = [];
-                    try {
-                        const mStr = currentMol.get_substruct_matches(q);
-                        allMatches = JSON.parse(mStr);
-                    } catch(e) {
-                        allMatches = [JSON.parse(matches)];
-                    }
-                    
-                    allMatches.forEach(m => {
-                        atoms.push(...m.atoms);
-                    });
-                    
-                    // Deduplicate
-                    const uniqueAtoms = [...new Set(atoms)];
-                    details.atoms = uniqueAtoms;
-                    // Colors
-                    const colors = {};
-                    uniqueAtoms.forEach(a => {
-                        if (highlightMode === 'hdonor') colors[a] = [0.2, 0.6, 1.0]; // blueish
-                        else if (highlightMode === 'hacceptor') colors[a] = [1.0, 0.4, 0.4]; // reddish
-                        else if (highlightMode === 'rotatable') colors[a] = [0.2, 0.8, 0.2]; // green
-                        else if (highlightMode === 'aromatic') colors[a] = [0.8, 0.2, 0.8]; // purple
-                    });
-                    
-                    // Note: RDKit minimal JS doesn't easily support passing color objects into get_svg without JSON details
-                    // We'll format the JSON for get_svg_with_highlights
-                    details = JSON.stringify({
-                        width: 380,
-                        height: 380,
-                        atoms: uniqueAtoms,
-                        bonds: [],
-                        highlightAtomColors: colors,
-                        highlightRadius: 0.35,
-                        drawOptions: { bondLineWidth: 2.2 }
+            if (q && q.is_valid()) {
+                const matchesStr = currentMol.get_substruct_matches(q);
+                if (matchesStr !== '{}') {
+                    const matches = JSON.parse(matchesStr);
+                    matches.forEach(m => {
+                        m.atoms.forEach(idx => {
+                            atomsToHighlight.add(idx);
+                            atomColors[idx] = color;
+                        });
                     });
                 }
                 q.delete();
             }
-        }
+        } catch(e){}
     }
-    
+
+    const chks = document.querySelectorAll('.hl-chk');
+    let hasHighlight = false;
+    chks.forEach(chk => {
+        if (chk.checked) {
+            hasHighlight = true;
+            if (chk.dataset.hl === 'hdonor') addMatches('[!#6;!H0]', COLOR_HBD);
+            if (chk.dataset.hl === 'hacceptor') addMatches('[$([O,S;H1;v2]-[!$(*=[O,N,P,S])]),$([O,S;H0;v2]),$([O,S;-]),$([N;v3;!$(N-*=!@[O,N,P,S])]),$([nH0,o,s;+0])]', COLOR_HBA);
+            if (chk.dataset.hl === 'rotatable') addMatches('[!$(*#*)&!D1]-&!@[!$(*#*)&!D1]', COLOR_ROTB);
+            if (chk.dataset.hl === 'aromatic') addMatches('a', COLOR_AROM);
+        }
+    });
+
     let svg = '';
-    if (typeof details === 'string' && details !== '{}') {
+    if (hasHighlight && atomsToHighlight.size > 0) {
+        const details = JSON.stringify({
+            width: 380,
+            height: 380,
+            atoms: Array.from(atomsToHighlight),
+            bonds: [],
+            highlightAtomColors: atomColors,
+            highlightRadius: 0.35,
+            drawOptions: { bondLineWidth: 2.2 }
+        });
         svg = currentMol.get_svg_with_highlights(details);
     } else {
         svg = currentMol.get_svg(380, 380);
@@ -309,7 +273,7 @@ function render2D(highlightMode) {
 }
 
 // ------------------------------------------------------------------
-// Render 3D with 3Dmol.js
+// 3D Rendering
 // ------------------------------------------------------------------
 function render3D(sdfText) {
     if (!viewer3D) {
@@ -318,7 +282,6 @@ function render3D(sdfText) {
     viewer3D.clear();
     viewer3D.addModel(sdfText, "sdf");
     
-    // Set default style
     document.querySelectorAll('.style-btn').forEach(b => b.dataset.active = 'false');
     document.querySelector('.style-btn[data-style="stick"]').dataset.active = 'true';
     
@@ -338,74 +301,43 @@ function set3DStyle(style) {
 // ------------------------------------------------------------------
 // Populate Tables
 // ------------------------------------------------------------------
-function populatePhysChem(p) {
-    const tbody = document.getElementById('table-physchem');
-    tbody.innerHTML = `
-        <tr><td>Rumus Molekul</td><td class="font-mono">${p.MolecularFormula || '-'}</td></tr>
-        <tr><td>Berat Molekul</td><td>${p.MolecularWeight ? p.MolecularWeight + ' g/mol' : '-'}</td></tr>
-        <tr><td>Massa Eksak</td><td>${p.ExactMass || '-'}</td></tr>
-        <tr><td>XLogP3 (Lipofilisitas)</td><td>${p.XLogP !== undefined ? p.XLogP : '-'}</td></tr>
-        <tr><td>TPSA (Polar Surface Area)</td><td>${p.TPSA ? p.TPSA + ' Å²' : '-'}</td></tr>
-        <tr><td>Jumlah Atom Berat</td><td>${p.HeavyAtomCount || '-'}</td></tr>
-        <tr><td>Kompleksitas</td><td>${p.Complexity || '-'}</td></tr>
-    `;
-}
-
-function populateLipinski(p) {
-    const mw = p.MolecularWeight || 0;
-    const logp = p.XLogP || 0;
-    const hbd = p.HBondDonorCount || 0;
-    const hba = p.HBondAcceptorCount || 0;
-    const rot = p.RotatableBondCount || 0;
-    const tpsa = p.TPSA || 0;
-    
-    let violations = 0;
-    if (mw > 500) violations++;
-    if (logp > 5) violations++;
-    if (hbd > 5) violations++;
-    if (hba > 10) violations++;
-    
-    const tbody = document.getElementById('table-lipinski');
-    tbody.innerHTML = `
-        <tr><td>Molecular Weight &le; 500</td><td class="${mw <= 500 ? 'text-emerald-600' : 'text-red-600'} font-bold">${mw}</td></tr>
-        <tr><td>XLogP3 &le; 5</td><td class="${logp <= 5 ? 'text-emerald-600' : 'text-red-600'} font-bold">${logp}</td></tr>
-        <tr><td>H-Bond Donors &le; 5</td><td class="${hbd <= 5 ? 'text-emerald-600' : 'text-red-600'} font-bold">${hbd}</td></tr>
-        <tr><td>H-Bond Acceptors &le; 10</td><td class="${hba <= 10 ? 'text-emerald-600' : 'text-red-600'} font-bold">${hba}</td></tr>
-        <tr><td>Rotatable Bonds &le; 10 (Veber)</td><td class="${rot <= 10 ? 'text-emerald-600' : 'text-amber-500'} font-bold">${rot}</td></tr>
-        <tr><td>TPSA &le; 140 Å² (Veber)</td><td class="${tpsa <= 140 ? 'text-emerald-600' : 'text-amber-500'} font-bold">${tpsa}</td></tr>
-    `;
-    
-    const verdict = document.getElementById('lipinski-verdict');
-    if (violations <= 1) {
-        verdict.className = "p-4 text-sm font-medium border-t border-emerald-200 bg-emerald-50 text-emerald-800";
-        verdict.innerHTML = `<i class="fa-solid fa-circle-check mr-2"></i>Memenuhi Aturan Lipinski (Drug-like)`;
-    } else {
-        verdict.className = "p-4 text-sm font-medium border-t border-red-200 bg-red-50 text-red-800";
-        verdict.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-2"></i>Melanggar ${violations} Aturan Lipinski (Kurang Drug-like)`;
+function populatePhysChem(props) {
+    const t = document.getElementById('table-physchem');
+    t.innerHTML = '';
+    if (!props || Object.keys(props).length === 0) {
+        t.innerHTML = '<tr><td colspan="2" class="p-3 text-slate-500 italic">Sifat eksperimental dari PubChem tidak tersedia untuk senyawa ini.</td></tr>';
+        return;
+    }
+    const map = {
+        'MolecularFormula': 'Rumus Molekul',
+        'MolecularWeight': 'Berat Molekul (PubChem)'
+    };
+    for (const [k, v] of Object.entries(map)) {
+        if (props[k]) {
+            t.innerHTML += `<tr><td class="font-medium">${v}</td><td>${props[k]}</td></tr>`;
+        }
     }
 }
 
-function populateGHS(infoArr) {
+function populateGHS(ghsData) {
     const pictoDiv = document.getElementById('ghs-pictograms');
     const stmtDiv = document.getElementById('ghs-statements');
     pictoDiv.innerHTML = '';
     stmtDiv.innerHTML = '';
     
-    if (!infoArr || infoArr.length === 0) {
-        pictoDiv.innerHTML = '<span class="text-slate-500 italic">Data GHS tidak tersedia / Senyawa dianggap aman.</span>';
+    if (!ghsData || ghsData.length === 0) {
+        pictoDiv.innerHTML = '<span class="text-slate-500 italic">Data bahaya GHS tidak tersedia di PubChem.</span>';
         return;
     }
     
-    // Find GHS pictograms
     const pictos = new Set();
     const stmts = new Set();
     
-    infoArr.forEach(info => {
+    ghsData.forEach(info => {
         if (info.Name === 'Pictogram(s)' && info.Value && info.Value.StringWithMarkup) {
             info.Value.StringWithMarkup.forEach(m => {
-                if (m.String && m.String.startsWith('GHS')) {
-                    pictos.add(m.String);
-                }
+                const match = m.String.match(/GHS\d+/);
+                if (match) pictos.add(match[0]);
             });
         }
         if (info.Name === 'GHS Hazard Statements' && info.Value && info.Value.StringWithMarkup) {
@@ -416,12 +348,11 @@ function populateGHS(infoArr) {
     });
     
     if (pictos.size === 0 && stmts.size === 0) {
-        pictoDiv.innerHTML = '<span class="text-slate-500 italic">Data GHS tidak tersedia.</span>';
+        pictoDiv.innerHTML = '<span class="text-slate-500 italic">Data bahaya GHS tidak tersedia di PubChem.</span>';
         return;
     }
     
     pictos.forEach(pcode => {
-        // PubChem GHS code e.g. GHS02
         const img = document.createElement('img');
         const num = pcode.replace('GHS', '');
         img.src = `https://pubchem.ncbi.nlm.nih.gov/images/ghs/GHS${num}.svg`;
@@ -436,3 +367,80 @@ function populateGHS(infoArr) {
         stmtDiv.appendChild(p);
     });
 }
+
+// ------------------------------------------------------------------
+// Event Listeners
+// ------------------------------------------------------------------
+document.getElementById('search-btn').addEventListener('click', () => {
+    const q = document.getElementById('search-input').value.trim();
+    if (q) processSearch(q);
+});
+
+document.getElementById('search-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        const q = e.target.value.trim();
+        if (q) processSearch(q);
+    }
+});
+
+document.querySelectorAll('.hl-chk').forEach(chk => {
+    chk.addEventListener('change', () => {
+        render2D();
+    });
+});
+
+document.querySelectorAll('.style-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.style-btn').forEach(b => b.dataset.active = 'false');
+        e.target.dataset.active = 'true';
+        set3DStyle(e.target.dataset.style);
+    });
+});
+
+document.getElementById('btn-spin').addEventListener('click', () => {
+    if (viewer3D) {
+        isSpinning = !isSpinning;
+        viewer3D.spin(isSpinning ? 'y' : false, 1.2);
+        document.getElementById('btn-spin').classList.toggle('bg-slate-200', isSpinning);
+    }
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+    if (viewer3D) {
+        viewer3D.zoomTo();
+        viewer3D.render();
+    }
+});
+
+function downloadBlob(content, filename, type) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+document.getElementById('btn-dl-2d').addEventListener('click', () => {
+    if (currentMol) {
+        const svg = document.getElementById('svg-wrap').innerHTML;
+        downloadBlob(svg, 'struktur-2d.svg', 'image/svg+xml');
+    }
+});
+
+document.getElementById('btn-dl-mol').addEventListener('click', () => {
+    if (currentSDF) {
+        downloadBlob(currentSDF, 'struktur-3d.mol', 'chemical/x-mdl-molfile');
+    }
+});
+
+document.getElementById('btn-dl-png').addEventListener('click', () => {
+    if (viewer3D) {
+        const pngURI = viewer3D.pngURI();
+        const a = document.createElement('a');
+        a.href = pngURI;
+        a.download = 'struktur-3d.png';
+        a.click();
+    }
+});
