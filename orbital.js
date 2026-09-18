@@ -9,7 +9,7 @@ const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
 camera.up.set(0, 0, 1);
-camera.position.set(15, 15, 15);
+camera.position.set(25, 25, 25);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
@@ -34,7 +34,7 @@ dirLight2.position.set(-10, -15, -10);
 scene.add(dirLight2);
 
 // --- Axes & Labels ---
-const axesHelper = new THREE.AxesHelper(15);
+const axesHelper = new THREE.AxesHelper(20);
 scene.add(axesHelper);
 
 function createTextSprite(text, color) {
@@ -55,15 +55,15 @@ function createTextSprite(text, color) {
 }
 
 const xLabel = createTextSprite('X', '#ff4444');
-xLabel.position.set(16, 0, 0);
+xLabel.position.set(21, 0, 0);
 scene.add(xLabel);
 
 const yLabel = createTextSprite('Y', '#44ff44');
-yLabel.position.set(0, 16, 0);
+yLabel.position.set(0, 21, 0);
 scene.add(yLabel);
 
 const zLabel = createTextSprite('Z', '#4444ff');
-zLabel.position.set(0, 0, 16);
+zLabel.position.set(0, 0, 21);
 scene.add(zLabel);
 
 // --- Marching Cubes Setup ---
@@ -78,7 +78,7 @@ const materialNegative = new THREE.MeshStandardMaterial({
 let effectPositive = new MarchingCubes(resolution, materialPositive, true, true, 100000);
 let effectNegative = new MarchingCubes(resolution, materialNegative, true, true, 100000);
 
-const extent = 15.0; 
+const extent = 20.0; 
 effectPositive.scale.set(extent, extent, extent);
 effectNegative.scale.set(extent, extent, extent);
 
@@ -168,7 +168,7 @@ document.getElementById('phase-toggle').addEventListener('change', (e) => {
 });
 
 document.getElementById('reset-btn').addEventListener('click', () => {
-    camera.position.set(15, 12, 15);
+    camera.position.set(25, 25, 25);
     controls.target.set(0, 0, 0);
     controls.update();
 });
