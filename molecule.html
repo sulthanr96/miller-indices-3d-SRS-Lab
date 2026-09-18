@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molecular Search & Properties</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Dependencies for Cheminformatics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.1.0/3Dmol-min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jsme-editor/jsme-editor.github.io@main/dist/jsme/jsme.nocache.js"></script>
+    <!-- RDKit is loaded via script tag below -->
+
+    <style>
+        body { margin: 0; background-color: #f8fafc; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow-y: auto; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        #jsme_container { width: 100%; height: 400px; }
+        .svg-container svg { width: 100%; height: 100%; max-height: 400px; display: block; margin: auto; }
+        .prop-table th { background-color: #f1f5f9; font-weight: 600; text-align: left; padding: 0.5rem; border-bottom: 2px solid #e2e8f0; }
+        .prop-table td { padding: 0.5rem; border-bottom: 1px solid #e2e8f0; }
+        .prop-table tr:hover { background-color: #f8fafc; }
+        
+        #loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.8); z-index: 50; align-items: center; justify-content: center; flex-direction: column; }
+        .spinner { border: 4px solid #e2e8f0; border-top: 4px solid #3b82f6; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <!-- Top Navigation -->
+    <nav class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold">
+                <i class="fa-solid fa-flask"></i>
+            </div>
+            <h1 class="text-xl font-bold text-slate-800">SRS Lab <span class="font-normal text-slate-400 mx-2">|</span> Molecule Search</h1>
+        </div>
+        <div class="flex items-center gap-4 text-sm font-medium">
+            <a href="miller.html" class="text-slate-500 hover:text-blue-600 transition-colors">Unit Cell & Miller</a>
+            <a href="orbital.html" class="text-slate-500 hover:text-blue-600 transition-colors">Quantum Orbitals</a>
+            <a href="molecule.html" class="text-blue-600 border-b-2 border-blue-600 pb-1">Molecule Search</a>
+            <a href="index.html" class="text-slate-500 hover:text-blue-600 transition-colors ml-4 border border-slate-200 px-3 py-1.5 rounded hover:bg-slate-50">Back to Hub</a>
+        </div>
+    </nav>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="flex">
+        <div class="spinner mb-4"></div>
+        <div id="loading-text" class="text-lg font-semibold text-slate-700">Loading data...</div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-6 py-8">
+        
+        <!-- Search Section -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">Cari Senyawa Kimia</h2>
+            <p class="text-slate-500 mb-4">Ketik nama trivial (mis: Aspirin), SMILES, InChIKey, atau CID PubChem. Atau gambar struktur secara manual.</p>
+            
+            <div class="flex gap-4">
+                <input type="text" id="search-input" class="flex-1 border border-slate-300 rounded-lg px-4 py-3 text-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all" placeholder="Misal: C1=CC=C(C=C1)C(=O)O atau Caffeine" autocomplete="off" />
+                <button id="search-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-search"></i> Cari
+                </button>
+                <button id="draw-btn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-pen-nib"></i> Gambar 2D
+                </button>
+            </div>
+        </div>
+
+        <!-- JSME Modal (Hidden by default) -->
+        <div id="jsme-modal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-2xl overflow-hidden w-full max-w-3xl flex flex-col">
+                <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <h3 class="font-bold text-lg text-slate-800">Editor Struktur 2D (JSME)</h3>
+                    <button id="close-jsme-btn" class="text-slate-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-xmark fa-xl"></i></button>
+                </div>
+                <div class="p-4 bg-white flex justify-center">
+                    <div id="jsme_container"></div>
+                </div>
+                <div class="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+                    <button id="jsme-cancel-btn" class="px-4 py-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-100 font-medium">Batal</button>
+                    <button id="jsme-apply-btn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium shadow-sm">Gunakan Struktur (SMILES)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section (Hidden initially) -->
+        <div id="results-section" class="hidden">
+            
+            <!-- Title & Basic Info -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <h2 id="res-title" class="text-3xl font-bold text-slate-800">Aspirin</h2>
+                    <span id="res-cid" class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded border border-blue-200">CID: 2244</span>
+                </div>
+                <div class="text-slate-500 font-mono text-sm break-all" id="res-smiles">CC(=O)OC1=CC=CC=C1C(=O)O</div>
+            </div>
+
+            <!-- Viz Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                
+                <!-- 2D Viewer -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700 flex justify-between items-center">
+                        <span><i class="fa-solid fa-draw-polygon mr-2"></i>Struktur 2D (RDKit)</span>
+                        <button id="btn-dl-2d" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50" title="Download SVG"><i class="fa-solid fa-download"></i> SVG</button>
+                    </div>
+                    <div class="p-4 flex-1 flex flex-col">
+                        <div id="svg-wrap" class="svg-container flex-1 bg-white border border-slate-100 rounded mb-4"></div>
+                        <div class="flex flex-wrap gap-2 justify-center text-sm">
+                            <button class="hl-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-blue-100 data-[active=true]:border-blue-300 data-[active=true]:text-blue-800 transition-colors" data-hl="none">Normal</button>
+                            <button class="hl-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-blue-100 data-[active=true]:border-blue-300 data-[active=true]:text-blue-800 transition-colors" data-hl="hdonor">H-Donor</button>
+                            <button class="hl-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-blue-100 data-[active=true]:border-blue-300 data-[active=true]:text-blue-800 transition-colors" data-hl="hacceptor">H-Acceptor</button>
+                            <button class="hl-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-blue-100 data-[active=true]:border-blue-300 data-[active=true]:text-blue-800 transition-colors" data-hl="rotatable">Rotatable Bonds</button>
+                            <button class="hl-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-blue-100 data-[active=true]:border-blue-300 data-[active=true]:text-blue-800 transition-colors" data-hl="aromatic">Aromatic Rings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3D Viewer -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700 flex justify-between items-center">
+                        <span><i class="fa-solid fa-cube mr-2"></i>Struktur 3D (PubChem)</span>
+                        <div class="flex gap-2">
+                            <button id="btn-dl-mol" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50" title="Download MOL"><i class="fa-solid fa-download"></i> MOL</button>
+                            <button id="btn-dl-png" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50" title="Download Image"><i class="fa-solid fa-camera"></i> PNG</button>
+                            <div class="w-px bg-slate-300 mx-1"></div>
+                            <button id="btn-spin" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-rotate mr-1"></i>Spin</button>
+                            <button id="btn-reset" class="text-xs px-2 py-1 bg-white border border-slate-300 rounded text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-expand mr-1"></i>Reset</button>
+                        </div>
+                    </div>
+                    <div class="p-4 flex-1 flex flex-col">
+                        <div id="3d-wrap" class="flex-1 bg-slate-900 border border-slate-100 rounded mb-4 relative" style="min-height: 300px; height: 100%;">
+                        </div>
+                        <div class="flex flex-wrap gap-2 justify-center text-sm">
+                            <button class="style-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-emerald-100 data-[active=true]:border-emerald-300 data-[active=true]:text-emerald-800 transition-colors" data-style="stick">Stick</button>
+                            <button class="style-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-emerald-100 data-[active=true]:border-emerald-300 data-[active=true]:text-emerald-800 transition-colors" data-style="sphere">Sphere (vdW)</button>
+                            <button class="style-btn px-3 py-1.5 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-50 data-[active=true]:bg-emerald-100 data-[active=true]:border-emerald-300 data-[active=true]:text-emerald-800 transition-colors" data-style="cross">Cross</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Properties Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Physchem -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700">
+                        <i class="fa-solid fa-flask-vial mr-2"></i>Sifat Fisika & Kimia
+                    </div>
+                    <div class="p-0 overflow-x-auto">
+                        <table class="prop-table w-full text-sm">
+                            <tbody id="table-physchem">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Lipinski / Drug Likeness -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700">
+                        <i class="fa-solid fa-pills mr-2"></i>Drug-likeness (Lipinski's Rule of 5)
+                    </div>
+                    <div class="p-0 overflow-x-auto">
+                        <table class="prop-table w-full text-sm">
+                            <tbody id="table-lipinski">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                        <div id="lipinski-verdict" class="p-4 text-sm font-medium border-t border-slate-200">
+                            <!-- Verdict -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- GHS Hazards -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden md:col-span-2">
+                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 font-semibold text-slate-700">
+                        <i class="fa-solid fa-triangle-exclamation mr-2 text-amber-500"></i>Keselamatan & Bahaya (GHS)
+                    </div>
+                    <div class="p-4">
+                        <div id="ghs-pictograms" class="flex gap-4 mb-4 flex-wrap">
+                            <!-- Populated by JS -->
+                        </div>
+                        <div id="ghs-statements" class="text-sm text-slate-600 space-y-1">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div> <!-- End Results -->
+
+    </div>
+
+    <script src="molecule.js" type="module"></script>
+    <script src="https://unpkg.com/@rdkit/rdkit/dist/RDKit_minimal.js"></script>
+</body>
+</html>
