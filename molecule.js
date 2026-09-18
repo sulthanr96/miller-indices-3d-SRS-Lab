@@ -284,9 +284,13 @@ function render2D(highlightMode) {
                     // Note: RDKit minimal JS doesn't easily support passing color objects into get_svg without JSON details
                     // We'll format the JSON for get_svg_with_highlights
                     details = JSON.stringify({
+                        width: 380,
+                        height: 380,
                         atoms: uniqueAtoms,
-                        bonds: [], // You can add bonds if needed
-                        atomColors: colors
+                        bonds: [],
+                        highlightAtomColors: colors,
+                        highlightRadius: 0.35,
+                        drawOptions: { bondLineWidth: 2.2 }
                     });
                 }
                 q.delete();
@@ -298,7 +302,7 @@ function render2D(highlightMode) {
     if (typeof details === 'string' && details !== '{}') {
         svg = currentMol.get_svg_with_highlights(details);
     } else {
-        svg = currentMol.get_svg();
+        svg = currentMol.get_svg(380, 380);
     }
     
     document.getElementById('svg-wrap').innerHTML = svg;
@@ -318,16 +322,16 @@ function render3D(sdfText) {
     document.querySelectorAll('.style-btn').forEach(b => b.dataset.active = 'false');
     document.querySelector('.style-btn[data-style="stick"]').dataset.active = 'true';
     
-    viewer3D.setStyle({}, { stick: { radius: 0.15 }, sphere: { scale: 0.3 } });
+    viewer3D.setStyle({}, { stick: { radius: 0.15, colorscheme: 'Jmol' }, sphere: { scale: 0.28, colorscheme: 'Jmol' } });
     viewer3D.zoomTo();
     viewer3D.render();
 }
 
 function set3DStyle(style) {
     if (!viewer3D) return;
-    if (style === 'stick') viewer3D.setStyle({}, { stick: { radius: 0.15 }, sphere: { scale: 0.3 } });
-    else if (style === 'sphere') viewer3D.setStyle({}, { sphere: {} });
-    else if (style === 'cross') viewer3D.setStyle({}, { cross: { thickness: 0.1 } });
+    if (style === 'stick') viewer3D.setStyle({}, { stick: { radius: 0.15, colorscheme: 'Jmol' }, sphere: { scale: 0.28, colorscheme: 'Jmol' } });
+    else if (style === 'sphere') viewer3D.setStyle({}, { sphere: { colorscheme: 'Jmol' } });
+    else if (style === 'cross') viewer3D.setStyle({}, { cross: { thickness: 0.1, colorscheme: 'Jmol' } });
     viewer3D.render();
 }
 
