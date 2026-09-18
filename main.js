@@ -226,9 +226,9 @@ function rebuildCrystal() {
                 
                 // 3 inner atoms (at z+0.5)
                 if (z < S) {
-                    positions.add(`1/3,2/3,${z+0.5}`);
-                    positions.add(`-2/3,1/3,${z+0.5}`);
-                    positions.add(`1/3,-1/3,${z+0.5}`);
+                    positions.add(`${1/3},${2/3},${z+0.5}`);
+                    positions.add(`${-2/3},${1/3},${z+0.5}`);
+                    positions.add(`${1/3},${-1/3},${z+0.5}`);
                 }
             }
         } else {
@@ -269,12 +269,13 @@ function rebuildCrystal() {
         // Just draw dots at corners if no system is selected
         const dotGeo = new THREE.BufferGeometry();
         const pts = [];
-        positions.forEach(posStr => {
-            if (posStr.includes('/')) return; // Skip non-integer dots for Miller plane dragging
-            const [u, v, w] = posStr.split(',').map(Number);
-            const cart = fracToCartesian(u, v, w);
-            pts.push(cart.x, cart.y, cart.z);
-        });
+        for (let cx = 0; cx <= S; cx++) {
+            for (let cy = 0; cy <= S; cy++) {
+                for (let cz = 0; cz <= S; cz++) {
+                    pts.push(cx, cy, cz);
+                }
+            }
+        }
         dotGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
         const dotMat = new THREE.PointsMaterial({ color: 0x64748b, size: 0.05 });
         const dotMesh = new THREE.Points(dotGeo, dotMat);
