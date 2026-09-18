@@ -309,7 +309,7 @@ function render2D(highlightMode) {
 // ------------------------------------------------------------------
 function render3D(sdfText) {
     if (!viewer3D) {
-        viewer3D = $3Dmol.createViewer("3d-wrap", { backgroundColor: '#0f172a' });
+        viewer3D = $3Dmol.createViewer("viewer-3d-wrap", { backgroundColor: '#0f172a' });
     }
     viewer3D.clear();
     viewer3D.addModel(sdfText, "sdf");
