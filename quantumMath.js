@@ -104,8 +104,7 @@ export function evaluateWavefunction(type, x, y, z) {
 // Synthetic textbook balloon for hybridization
 function textbookBalloon(x, y, z, r, vx, vy, vz) {
     if (r < 1e-6) return 0;
-    const dot = (x*vx + y*vy + z*vz) / r;
-    if (dot <= 0) return 0; // only the positive lobe
+    const dot = Math.max(0, (x*vx + y*vy + z*vz) / r);
     // r^2 * exp(-r^2 / 2) peaks at sqrt(2), dot^12 makes it a nice distinct thin balloon
     return ((r*r) / 0.7357) * Math.exp(-(r*r)/2.0) * Math.pow(dot, 12);
 }
@@ -152,10 +151,7 @@ export function evaluateHybridization(type, x, y, z) {
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, 0, 0, -1));
     }
 
-    // Add a perfectly smooth, small spherical core at the origin.
-    // This fills the center and completely prevents MarchingCubes from generating
-    // sharp jagged "spider web" artifacts where the balloons converge to zero.
-    let sum_hybrid = 0.8 * Math.exp(-r_s * r_s * 3.0);
+    let sum_hybrid = 0;
     
     for (let b of balloons) {
         sum_hybrid += b;

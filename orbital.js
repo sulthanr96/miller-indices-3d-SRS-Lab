@@ -72,7 +72,7 @@ zLabel.position.set(0, 0, 21);
 scene.add(zLabel);
 
 // --- Marching Cubes Setup ---
-let resolution = 55; // higher resolution for smooth high-quality meshes
+let resolution = 80; // very high resolution to prevent jagged center tips
 const materialPositive = new THREE.MeshPhysicalMaterial({ 
     color: 0x3b82f6, 
     emissive: 0x1e3a8a,
