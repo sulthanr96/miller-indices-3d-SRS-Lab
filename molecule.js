@@ -1,4 +1,4 @@
-﻿let RDKitModule = null;
+let RDKitModule = null;
 let viewer3D = null;
 let currentMol = null; // RDKit molecule object
 let currentSmiles = '';
@@ -198,17 +198,21 @@ async function fetchCompoundDetails(cid, originalQuery) {
     ]);
 
     const props = propData.PropertyTable.Properties[0];
-    currentSmiles = props.CanonicalSMILES;
+    currentSmiles = props.CanonicalSMILES || props.IsomericSMILES || '';
     currentSDF = sdfText;
     
     // Update Header
     document.getElementById('res-title').innerText = props.Title || originalQuery;
     document.getElementById('res-cid').innerText = `CID: ${props.CID || cid}`;
-    document.getElementById('res-smiles').innerText = currentSmiles;
+    document.getElementById('res-smiles').innerText = currentSmiles || 'SMILES tidak tersedia';
     
     // Prepare RDKit Mol
     if (currentMol) currentMol.delete();
-    currentMol = RDKitModule.get_mol(currentSmiles);
+    if (currentSmiles) {
+        currentMol = RDKitModule.get_mol(currentSmiles);
+    } else {
+        currentMol = null;
+    }
     
     // Reset highlighter
     document.querySelectorAll('.hl-btn').forEach(b => b.dataset.active = 'false');
@@ -228,7 +232,10 @@ async function fetchCompoundDetails(cid, originalQuery) {
 // Render 2D SVG with Highlighting
 // ------------------------------------------------------------------
 function render2D(highlightMode) {
-    if (!currentMol) return;
+    if (!currentMol) {
+        document.getElementById('svg-wrap').innerHTML = '<div class="flex items-center justify-center h-full text-slate-400 italic">2D tidak tersedia</div>';
+        return;
+    }
     
     let details = {};
     if (highlightMode !== 'none') {
