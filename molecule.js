@@ -658,6 +658,10 @@ const jsmeCancelBtn = document.getElementById('jsme-cancel-btn');
 const jsmeApplyBtn = document.getElementById('jsme-apply-btn');
 let jsmeApplet = null;
 
+window.jsmeOnLoad = function() {
+    console.log("JSME Loaded");
+};
+
 function initJSME() {
     if (!jsmeApplet) {
         jsmeApplet = new JSApplet.JSME("jsme_container", "100%", "400px", {
@@ -669,11 +673,25 @@ function initJSME() {
 drawBtn.addEventListener('click', () => {
     jsmeModal.classList.remove('hidden');
     initJSME();
-    if (currentSmiles) {
-        jsmeApplet.readSMILES(currentSmiles);
-    } else {
-        jsmeApplet.reset();
-    }
+    
+    // Give JSME time to inject iframe and expose its methods
+    setTimeout(() => {
+        try {
+            if (currentSmiles) {
+                if (typeof jsmeApplet.readGenericMolecularInput === 'function') {
+                    jsmeApplet.readGenericMolecularInput(currentSmiles);
+                } else if (typeof jsmeApplet.readSMILES === 'function') {
+                    jsmeApplet.readSMILES(currentSmiles);
+                }
+            } else {
+                if (typeof jsmeApplet.reset === 'function') {
+                    jsmeApplet.reset();
+                }
+            }
+        } catch(e) {
+            console.error("Error setting JSME smiles", e);
+        }
+    }, 600); // Wait 600ms for iframe to load
 });
 
 function closeJsme() {
