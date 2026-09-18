@@ -97,25 +97,41 @@ function updateAxes() {
 
     const colorX = 0xef4444, colorY = 0x22c55e, colorZ = 0x3b82f6;
 
-    axesGroup.add(new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), origin, axisLength, colorX, headLength, headWidth));
-    axesGroup.add(new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), origin, axisLength, colorY, headLength, headWidth));
-    axesGroup.add(new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), origin, axisLength, colorZ, headLength, headWidth));
+    const dirX = fracToCartesian(1, 0, 0).normalize();
+    const dirY = fracToCartesian(0, 1, 0).normalize();
+    const dirZ = fracToCartesian(0, 0, 1).normalize();
 
-    axesGroup.add(createLabelSprite('X', new THREE.Vector3(axisLength + 0.1, 0, 0), '#ef4444'));
-    axesGroup.add(createLabelSprite('Y', new THREE.Vector3(0, axisLength + 0.1, 0), '#22c55e'));
-    axesGroup.add(createLabelSprite('Z', new THREE.Vector3(0, 0, axisLength + 0.1), '#3b82f6'));
+    axesGroup.add(new THREE.ArrowHelper(dirX, origin, axisLength, colorX, headLength, headWidth));
+    axesGroup.add(new THREE.ArrowHelper(dirY, origin, axisLength, colorY, headLength, headWidth));
+    axesGroup.add(new THREE.ArrowHelper(dirZ, origin, axisLength, colorZ, headLength, headWidth));
+
+    axesGroup.add(createLabelSprite('X', dirX.clone().multiplyScalar(axisLength + 0.1), '#ef4444'));
+    axesGroup.add(createLabelSprite('Y', dirY.clone().multiplyScalar(axisLength + 0.1), '#22c55e'));
+    axesGroup.add(createLabelSprite('Z', dirZ.clone().multiplyScalar(axisLength + 0.1), '#3b82f6'));
 }
 
 // --- Crystal Structure Logic ---
 const crystalData = {
     'sc': { name: 'Simple Cubic (SC)', atoms: 1, cn: 6, apf: '52.4%', r: 'a/2', rVal: 0.5 },
     'bcc': { name: 'Body-Centered Cubic (BCC)', atoms: 2, cn: 8, apf: '68.0%', r: 'a√3/4', rVal: Math.sqrt(3)/4 },
-    'fcc': { name: 'Face-Centered Cubic (FCC)', atoms: 4, cn: 12, apf: '74.0%', r: 'a√2/4', rVal: Math.sqrt(2)/4 }
+    'fcc': { name: 'Face-Centered Cubic (FCC)', atoms: 4, cn: 12, apf: '74.0%', r: 'a√2/4', rVal: Math.sqrt(2)/4 },
+    'hcp': { name: 'Hexagonal Close-Packed (HCP)', atoms: 2, cn: 12, apf: '74.0%', r: 'a/2', rVal: 0.5 }
 };
 
 const defaultSphereMat = new THREE.MeshBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.5 });
 const selectedSphereMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
 
+
+function fracToCartesian(u, v, w) {
+    if (currentSystem === 'hcp') {
+        const c_over_a = 1.633;
+        const x = u - v * 0.5;
+        const y = v * Math.sqrt(3) / 2;
+        const z = w * c_over_a;
+        return new THREE.Vector3(x, y, z);
+    }
+    return new THREE.Vector3(u, v, w);
+}
 function rebuildCrystal() {
     atomsGroup.clear();
     cellLinesGroup.clear();
@@ -130,11 +146,21 @@ function rebuildCrystal() {
     for (let x=0; x<S; x++) {
         for (let y=0; y<S; y++) {
             for (let z=0; z<S; z++) {
-                const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-                const edges = new THREE.EdgesGeometry(boxGeo);
-                const lines = new THREE.LineSegments(edges, lineMat);
-                lines.position.set(x + 0.5, y + 0.5, z + 0.5);
-                cellLinesGroup.add(lines);
+                const pts = [
+                    [0,0,0], [1,0,0], [1,1,0], [0,1,0], [0,0,0],
+                    [0,0,1], [1,0,1], [1,1,1], [0,1,1], [0,0,1]
+                ];
+                const linePts = pts.map(p => fracToCartesian(x + p[0], y + p[1], z + p[2]));
+                const geo1 = new THREE.BufferGeometry().setFromPoints(linePts);
+                cellLinesGroup.add(new THREE.Line(geo1, lineMat));
+                
+                // vertical pillars
+                [[1,0], [1,1], [0,1]].forEach(p => {
+                    const p1 = fracToCartesian(x + p[0], y + p[1], z + 0);
+                    const p2 = fracToCartesian(x + p[0], y + p[1], z + 1);
+                    const geo2 = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+                    cellLinesGroup.add(new THREE.Line(geo2, lineMat));
+                });
             }
         }
     }
@@ -158,6 +184,9 @@ function rebuildCrystal() {
                     if (cx < S && cy < S && cz < S) {
                         if (currentSystem === 'bcc') positions.add(`${cx+0.5},${cy+0.5},${cz+0.5}`);
                     }
+                    if (currentSystem === 'hcp') {
+                        if (cx < S && cy < S && cz < S) positions.add(`${cx+1/3},${cy+2/3},${cz+1/2}`);
+                    }
                     if (currentSystem === 'fcc') {
                         if (cx < S && cy < S) positions.add(`${cx+0.5},${cy+0.5},${cz}`);
                         if (cx < S && cz < S) positions.add(`${cx+0.5},${cy},${cz+0.5}`);
@@ -168,9 +197,10 @@ function rebuildCrystal() {
         }
 
         positions.forEach(posStr => {
-            const [x, y, z] = posStr.split(',').map(Number);
+            const [u, v, w] = posStr.split(',').map(Number);
+            const cart = fracToCartesian(u, v, w);
             const mesh = new THREE.Mesh(sphereGeo, atomMat);
-            mesh.position.set(x, y, z);
+            mesh.position.copy(cart);
             atomsGroup.add(mesh);
         });
         
@@ -219,7 +249,7 @@ function rebuildCrystal() {
     updatePlane();
     
     // Adjust target to center of supercell
-    controls.target.set(S/2, S/2, S/2);
+    controls.target.copy(fracToCartesian(S/2, S/2, S/2));
 }
 
 // --- Plane Logic ---
@@ -306,9 +336,12 @@ function updatePlane() {
     if (points.length >= 3) {
         const vertices = [];
         for (let i = 1; i < points.length - 1; i++) {
-            vertices.push(points[0].x, points[0].y, points[0].z);
-            vertices.push(points[i].x, points[i].y, points[i].z);
-            vertices.push(points[i+1].x, points[i+1].y, points[i+1].z);
+            const p0 = fracToCartesian(points[0].x, points[0].y, points[0].z);
+            const pi = fracToCartesian(points[i].x, points[i].y, points[i].z);
+            const pn = fracToCartesian(points[i+1].x, points[i+1].y, points[i+1].z);
+            vertices.push(p0.x, p0.y, p0.z);
+            vertices.push(pi.x, pi.y, pi.z);
+            vertices.push(pn.x, pn.y, pn.z);
         }
 
         const geometry = new THREE.BufferGeometry();
@@ -324,7 +357,7 @@ function updatePlane() {
         planeMesh = new THREE.Mesh(geometry, material);
         scene.add(planeMesh);
 
-        const edgePts = [...points, points[0]];
+        const edgePts = [...points, points[0]].map(p => fracToCartesian(p.x, p.y, p.z));
         const edgeGeo = new THREE.BufferGeometry().setFromPoints(edgePts);
         planeEdges = new THREE.LineLoop(edgeGeo, new THREE.LineBasicMaterial({ color: 0x5b21b6, linewidth: 2 }));
         scene.add(planeEdges);
