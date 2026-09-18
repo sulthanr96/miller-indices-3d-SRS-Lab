@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Molecular Search & Properties</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <!-- Dependencies for Cheminformatics -->
@@ -61,8 +61,8 @@
             <p class="text-slate-500 mb-4">Ketik nama trivial (mis: Aspirin), SMILES, InChIKey, atau CID PubChem. Atau gambar struktur secara manual.</p>
             
             <div class="flex gap-4">
-                <input type="text" id="search-input" class="flex-1 border border-slate-300 rounded-lg px-4 py-3 text-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all" placeholder="Misal: C1=CC=C(C=C1)C(=O)O atau Caffeine" autocomplete="off" />
-                <button id="search-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center gap-2">
+                <input type="text" id="search-input" aria-label="Input SMILES atau nama senyawa" class="flex-1 border border-slate-300 rounded-lg px-4 py-3 text-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all" placeholder="Misal: C1=CC=C(C=C1)C(=O)O atau Caffeine" autocomplete="off" />
+                <button id="search-btn" aria-label="Cari molekul" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center gap-2">
                     <i class="fa-solid fa-search"></i> Cari
                 </button>
                 <button id="draw-btn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center gap-2">

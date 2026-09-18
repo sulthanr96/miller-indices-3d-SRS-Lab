@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Miller Indices 3D Visualizer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body { margin: 0; overflow: hidden; }
@@ -22,14 +22,7 @@
         }
     </style>
     <!-- Map Three.js modules -->
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-        }
-      }
-    </script>
+    
 </head>
 <body class="bg-slate-50 h-screen flex flex-col font-sans text-gray-800 selection:bg-blue-200 overflow-hidden">
     <!-- Header Controls -->
@@ -45,7 +38,7 @@
                 </div>
             </div>
             <!-- Mobile GitHub Link -->
-            <a href="https://github.com" target="_blank" class="md:hidden text-gray-500 hover:text-black transition-colors p-2">
+            <a href="https://github.com/sulthanr96/miller-indices-3d-SRS-Lab" target="_blank" class="md:hidden text-gray-500 hover:text-black transition-colors p-2">
                 <i class="fab fa-github text-xl"></i>
             </a>
         </div>
@@ -62,9 +55,9 @@
             <!-- Indices Inputs -->
             <div class="flex items-center space-x-1 md:space-x-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200 shadow-inner">
                 <span class="font-bold text-gray-400 text-base md:text-lg pl-1">(</span>
-                <input type="number" id="h-input" value="1" class="w-8 h-8 md:w-10 md:h-10 text-center font-bold text-base md:text-lg bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all">
-                <input type="number" id="k-input" value="1" class="w-8 h-8 md:w-10 md:h-10 text-center font-bold text-base md:text-lg bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all">
-                <input type="number" id="l-input" value="1" class="w-8 h-8 md:w-10 md:h-10 text-center font-bold text-base md:text-lg bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all">
+                <input type="number" id="h-input" aria-label="Indeks Miller h" value="1" class="w-8 h-8 md:w-10 md:h-10 text-center font-bold text-base md:text-lg bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all">
+                <input type="number" id="k-input" aria-label="Indeks Miller k" value="1" class="w-8 h-8 md:w-10 md:h-10 text-center font-bold text-base md:text-lg bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all">
+                <input type="number" id="l-input" aria-label="Indeks Miller l" value="1" class="w-8 h-8 md:w-10 md:h-10 text-center font-bold text-base md:text-lg bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all">
                 <span class="font-bold text-gray-400 text-base md:text-lg pr-1">)</span>
             </div>
             
@@ -157,7 +150,7 @@
         </div>
         
         <!-- Desktop GitHub Link -->
-        <a href="https://github.com" target="_blank" class="hidden md:flex absolute bottom-4 right-4 lg:bottom-6 lg:right-6 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg border border-gray-200/50 hover:bg-gray-100 transition-colors text-gray-700 hover:text-black z-10">
+        <a href="https://github.com/sulthanr96/miller-indices-3d-SRS-Lab" target="_blank" class="hidden md:flex absolute bottom-4 right-4 lg:bottom-6 lg:right-6 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg border border-gray-200/50 hover:bg-gray-100 transition-colors text-gray-700 hover:text-black z-10">
             <i class="fab fa-github text-xl"></i>
         </a>
     </main>
