@@ -22,16 +22,21 @@ controls.dampingFactor = 0.05;
 controls.target.set(0, 0, 0);
 
 // --- Lighting ---
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambientLight);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-dirLight.position.set(10, 15, 20);
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+dirLight.position.set(20, 30, 20);
 scene.add(dirLight);
 
-const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-dirLight2.position.set(-10, -15, -10);
+const dirLight2 = new THREE.DirectionalLight(0xaabbff, 0.8);
+dirLight2.position.set(-20, -20, -20);
 scene.add(dirLight2);
+
+// Central nucleus light to make orbitals glow from inside
+const nucleusLight = new THREE.PointLight(0xffffff, 2.0, 30);
+nucleusLight.position.set(0, 0, 0);
+scene.add(nucleusLight);
 
 // --- Axes & Labels ---
 const axesHelper = new THREE.AxesHelper(20);
@@ -68,11 +73,29 @@ scene.add(zLabel);
 
 // --- Marching Cubes Setup ---
 let resolution = 35; // slightly lower for smooth auto-animation
-const materialPositive = new THREE.MeshStandardMaterial({ 
-    color: 0x3b82f6, roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide, transparent: true, opacity: 0.85 
+const materialPositive = new THREE.MeshPhysicalMaterial({ 
+    color: 0x3b82f6, 
+    emissive: 0x1e3a8a,
+    emissiveIntensity: 0.3,
+    roughness: 0.1, 
+    metalness: 0.1, 
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.2,
+    side: THREE.DoubleSide, 
+    transparent: true, 
+    opacity: 0.85 
 });
-const materialNegative = new THREE.MeshStandardMaterial({ 
-    color: 0xef4444, roughness: 0.2, metalness: 0.1, side: THREE.DoubleSide, transparent: true, opacity: 0.85 
+const materialNegative = new THREE.MeshPhysicalMaterial({ 
+    color: 0xef4444, 
+    emissive: 0x7f1d1d,
+    emissiveIntensity: 0.3,
+    roughness: 0.1, 
+    metalness: 0.1, 
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.2,
+    side: THREE.DoubleSide, 
+    transparent: true, 
+    opacity: 0.85 
 });
 
 let effectPositive = new MarchingCubes(resolution, materialPositive, true, true, 100000);
@@ -216,16 +239,6 @@ let lastTime = 0;
 
 function animate(time) {
     requestAnimationFrame(animate);
-    
-    // Auto-rotate the scene slowly to appreciate the 3D geometry
-    if (isHybridMode) {
-        // We can rotate the hybrid scene slightly for a nice effect
-        scene.rotation.y += 0.005;
-        scene.rotation.x += 0.002;
-    } else {
-        scene.rotation.set(0, 0, 0);
-    }
-    
     controls.update();
     renderer.render(scene, camera);
 }
