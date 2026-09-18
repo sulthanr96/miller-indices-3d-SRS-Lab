@@ -198,22 +198,226 @@ async function fetchCompoundDetails(cid, originalQuery) {
     ]);
 
     const props = propData.PropertyTable.Properties[0];
-    currentSmiles = props.CanonicalSMILES;
+    currentSmiles = props.CanonicalSMILES || props.IsomericSMILES || '';
     currentSDF = sdfText;
     
     // Update Header
     document.getElementById('res-title').innerText = props.Title || originalQuery;
     document.getElementById('res-cid').innerText = `CID: ${props.CID || cid}`;
-    document.getElementById('res-smiles').innerText = currentSmiles;
+    document.getElementById('res-smiles').innerText = currentSmiles || 'SMILES tidak tersedia';
     
     // Prepare RDKit Mol
     if (currentMol) currentMol.delete();
-    currentMol = RDKitModule.get_mol(currentSmiles);
+    if (currentSmiles) {
+        currentMol = RDKitModule.get_mol(currentSmiles);
+    } else {
+        currentMol = null;
+    }
     
     // Reset highlighter
     document.querySelectorAll('.hl-btn').forEach(b => b.dataset.active = 'false');
     document.querySelector('.hl-btn[data-hl="none"]').dataset.active = 'true';
     
+    // Render 2D & 3D
+    render2D('none');
+    render3D(sdfText);
+    
+    // Populate Tables
+    populatePhysChem(props);
+    populateLipinski(props);
+    populateGHS(ghsData);
+}et viewer3D = null;
+let currentMol = null; // RDKit molecule object
+let currentSmiles = '';
+let currentSDF = '';
+
+const PUG = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug';
+const PUG_VIEW = 'https://pubchem.ncbi.nlm.nih.gov/rest/pug_view';
+
+// Initialize RDKit
+window.initRDKitModule().then(function(instance) {
+    RDKitModule = instance;
+    console.log('RDKit version: ' + RDKitModule.version());
+}).catch(e => {
+    console.error('RDKit initialization failed', e);
+});
+
+// UI Elements
+const searchBtn = document.getElementById('search-btn');
+const searchInput = document.getElementById('search-input');
+const drawBtn = document.getElementById('draw-btn');
+const jsmeModal = document.getElementById('jsme-modal');
+const closeJsmeBtn = document.getElementById('close-jsme-btn');
+const jsmeCancelBtn = document.getElementById('jsme-cancel-btn');
+const jsmeApplyBtn = document.getElementById('jsme-apply-btn');
+const resultsSection = document.getElementById('results-section');
+const loadingOverlay = document.getElementById('loading-overlay');
+
+// JSME Applet reference
+let jsmeApplet = null;
+
+// Initialize JSME when modal opens (lazy loading)
+function initJSME() {
+    if (!jsmeApplet) {
+        jsmeApplet = new JSApplet.JSME("jsme_container", "100%", "400px", {
+            options: "oldlook,star,atommovebutton,smiles,hydrogens"
+        });
+    }
+}
+
+drawBtn.addEventListener('click', () => {
+    jsmeModal.classList.remove('hidden');
+    initJSME();
+    if (currentSmiles) {
+        jsmeApplet.readSMILES(currentSmiles);
+    } else {
+        jsmeApplet.reset();
+    }
+});
+
+function closeJsme() {
+    jsmeModal.classList.add('hidden');
+}
+
+closeJsmeBtn.addEventListener('click', closeJsme);
+jsmeCancelBtn.addEventListener('click', closeJsme);
+
+jsmeApplyBtn.addEventListener('click', () => {
+    const smiles = jsmeApplet.smiles();
+    if (smiles) {
+        searchInput.value = smiles;
+        closeJsme();
+        processSearch(smiles);
+    } else {
+        alert('Struktur kosong. Silakan gambar sesuatu terlebih dahulu.');
+    }
+});
+
+searchBtn.addEventListener('click', () => {
+    if (searchInput.value.trim()) {
+        processSearch(searchInput.value.trim());
+    }
+});
+
+searchInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && searchInput.value.trim()) {
+        processSearch(searchInput.value.trim());
+    }
+});
+
+// Highlight Buttons
+document.querySelectorAll('.hl-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.hl-btn').forEach(b => b.dataset.active = 'false');
+        e.target.dataset.active = 'true';
+        render2D(e.target.dataset.hl);
+    });
+});
+
+// 3D Style Buttons
+document.querySelectorAll('.style-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.style-btn').forEach(b => b.dataset.active = 'false');
+        e.target.dataset.active = 'true';
+        set3DStyle(e.target.dataset.style);
+    });
+});
+
+// 3D Controls
+document.getElementById('btn-spin').addEventListener('click', () => {
+    if (viewer3D) {
+        viewer3D.spin(true);
+        setTimeout(() => viewer3D.spin(false), 3000); // spin for 3 seconds
+    }
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+    if (viewer3D) {
+        viewer3D.zoomTo();
+    }
+});
+
+// ------------------------------------------------------------------
+// Main Logic
+// ------------------------------------------------------------------
+
+function showLoading(text) {
+    document.getElementById('loading-text').innerText = text;
+    loadingOverlay.style.display = 'flex';
+}
+function hideLoading() {
+    loadingOverlay.style.display = 'none';
+}
+
+async function processSearch(query) {
+    if (!RDKitModule) {
+        alert("RDKit is still loading, please wait a moment.");
+        return;
+    }
+    showLoading("Mencari senyawa di PubChem...");
+    try {
+        const cid = await resolveCID(query);
+        if (!cid) throw new Error('Senyawa tidak ditemukan di PubChem.');
+        
+        showLoading("Mengunduh data dan struktur 3D...");
+        await fetchCompoundDetails(cid, query);
+        
+        resultsSection.classList.remove('hidden');
+    } catch (e) {
+        alert(e.message);
+        console.error(e);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function fetchJson(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+}
+
+async function resolveCID(raw) {
+    // 1. Direct CID
+    if (/^\d+$/.test(raw)) return parseInt(raw, 10);
+    
+    // 2. InChIKey
+    if (/^[A-Z]{14}-[A-Z]{10}-[A-Z0-9]$/i.test(raw)) {
+        try { const data = await fetchJson(`${PUG}/compound/inchikey/${encodeURIComponent(raw)}/cids/JSON`);
+        return data.IdentifierList.CID[0]; } catch(e){}
+    }
+    
+    // 3. FastFormula
+    if (/^[A-Za-z0-9]+$/.test(raw) && /\d/.test(raw) && /[A-Z]/.test(raw)) {
+        try { const data = await fetchJson(`${PUG}/compound/fastformula/${encodeURIComponent(raw)}/cids/JSON`);
+        return data.IdentifierList.CID[0]; } catch(e){}
+    }
+    
+    // 4. Name
+    try { const data = await fetchJson(`${PUG}/compound/name/${encodeURIComponent(raw)}/cids/JSON`);
+    return data.IdentifierList.CID[0]; } catch(e) {}
+    
+    // 5. SMILES
+    try { const data = await fetchJson(`${PUG}/compound/smiles/${encodeURIComponent(raw)}/cids/JSON`);
+    return data.IdentifierList.CID[0]; } catch(e) {}
+    
+    return null;
+}
+
+async function fetchPugViewHeading(cid, heading) {
+    try {
+        const url = `${PUG_VIEW}/data/compound/${cid}/JSON?heading=${encodeURIComponent(heading)}`;
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.Record.Section[0].Section[0].Information || [];
+    } catch (e) { return []; }
+}
+
+async function fetchCompoundDetails(cid, originalQuery) {
+    const fields = 'CanonicalSMILES,IsomericSMILES,Title,MolecularFormula,MolecularWeight,XLogP,ExactMass,TPSA,Complexity,HeavyAtomCount,RotatableBondCount,HBondDonorCount,HBondAcceptorCount';
+    
+    const [propData, sdfText, ghsData, physData] = await Promise.all([
     // Render 2D & 3D
     render2D('none');
     render3D(sdfText);
