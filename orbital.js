@@ -108,6 +108,52 @@ effectNegative.scale.set(extent, extent, extent);
 scene.add(effectPositive);
 scene.add(effectNegative);
 
+const hybridGroup = new THREE.Group();
+scene.add(hybridGroup);
+
+// Create perfect teardrop geometry (infinite resolution)
+const balloonGeo = new THREE.SphereGeometry(6, 64, 64);
+balloonGeo.translate(0, 6, 0); // Bottom at origin, top at y=12
+const pos = balloonGeo.attributes.position;
+for(let i=0; i<pos.count; i++) {
+    let y = pos.getY(i);
+    let x = pos.getX(i);
+    let z = pos.getZ(i);
+    let factor = 1.0;
+    if (y < 6) {
+        factor = Math.pow(y / 6.0, 1.2); 
+    }
+    pos.setX(i, x * factor);
+    pos.setZ(i, z * factor);
+}
+balloonGeo.computeVertexNormals();
+
+const hybridDirections = {
+    'sp': [[1,0,0], [-1,0,0]],
+    'sp2': [[1,0,0], [-0.5,0.866,0], [-0.5,-0.866,0]],
+    'sp3': [[1,1,1], [1,-1,-1], [-1,1,-1], [-1,-1,1]],
+    'sp3d': [[1,0,0], [-0.5,0.866,0], [-0.5,-0.866,0], [0,0,1], [0,0,-1]],
+    'sp3d2': [[1,0,0], [-1,0,0], [0,1,0], [0,-1,0], [0,0,1], [0,0,-1]]
+};
+
+function updateHybridMeshes() {
+    hybridGroup.clear();
+    const dirs = hybridDirections[currentHybrid];
+    for (let d of dirs) {
+        const mesh = new THREE.Mesh(balloonGeo, materialPositive);
+        const up = new THREE.Vector3(0,1,0);
+        const dir = new THREE.Vector3(d[0], d[1], d[2]).normalize();
+        const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
+        mesh.setRotationFromQuaternion(quat);
+        
+        // Scale down or up based on isovalue
+        const s = Math.max(0.2, 1.0 - (isovalue - 0.05) * 10);
+        mesh.scale.set(s, s, s);
+        
+        hybridGroup.add(mesh);
+    }
+}
+
 let isHybridMode = false;
 let currentAtomic = '1s';
 let currentHybrid = 'sp';
@@ -122,6 +168,18 @@ const hybridInfos = {
 };
 
 function updateIsoSurface() {
+    if (isHybridMode) {
+        effectPositive.visible = false;
+        effectNegative.visible = false;
+        hybridGroup.visible = true;
+        updateHybridMeshes();
+        return;
+    }
+
+    hybridGroup.visible = false;
+    effectPositive.visible = true;
+    effectNegative.visible = showPhase;
+
     effectPositive.reset();
     effectNegative.reset();
     
@@ -133,21 +191,9 @@ function updateIsoSurface() {
             for ( let i = 0; i < resolution; i ++ ) {
                 const x = -extent + (2.0 * extent * i) / (resolution - 1);
                 
-                let maxPos = 0;
-                let maxNeg = 0;
-
-                if (!isHybridMode) {
-                    const psi = evaluateWavefunction(currentAtomic, x, y, z);
-                    maxPos = psi > 0 ? psi : 0;
-                    maxNeg = psi < 0 ? -psi : 0;
-                } else {
-                    const hybrids = evaluateHybridization(currentHybrid, x, y, z);
-                    // To show all hybrid orbitals together, we take the max probability at this point
-                    for (let h of hybrids) {
-                        if (h > maxPos) maxPos = h;
-                        if (h < -maxNeg) maxNeg = -h;
-                    }
-                }
+                const psi = evaluateWavefunction(currentAtomic, x, y, z);
+                const maxPos = psi > 0 ? psi : 0;
+                const maxNeg = psi < 0 ? -psi : 0;
                 
                 effectPositive.field[index] = maxPos;
                 effectNegative.field[index] = maxNeg;
