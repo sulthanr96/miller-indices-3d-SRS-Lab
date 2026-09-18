@@ -5,6 +5,58 @@ let currentSDF = '';
 let viewer3D = null;
 let isSpinning = false;
 
+// Initialize RDKit
+window.initRDKitModule().then(function(instance) {
+    RDKitModule = instance;
+    console.log('RDKit version: ' + RDKitModule.version());
+}).catch(e => {
+    console.error('RDKit initialization failed', e);
+});
+
+const drawBtn = document.getElementById('draw-btn');
+const jsmeModal = document.getElementById('jsme-modal');
+const closeJsmeBtn = document.getElementById('close-jsme-btn');
+const jsmeCancelBtn = document.getElementById('jsme-cancel-btn');
+const jsmeApplyBtn = document.getElementById('jsme-apply-btn');
+
+let jsmeApplet = null;
+
+function initJSME() {
+    if (!jsmeApplet) {
+        jsmeApplet = new JSApplet.JSME("jsme_container", "100%", "400px", {
+            options: "oldlook,star,atommovebutton,smiles,hydrogens"
+        });
+    }
+}
+
+drawBtn.addEventListener('click', () => {
+    jsmeModal.classList.remove('hidden');
+    initJSME();
+    if (currentSmiles) {
+        jsmeApplet.readSMILES(currentSmiles);
+    } else {
+        jsmeApplet.reset();
+    }
+});
+
+function closeJsme() {
+    jsmeModal.classList.add('hidden');
+}
+
+closeJsmeBtn.addEventListener('click', closeJsme);
+jsmeCancelBtn.addEventListener('click', closeJsme);
+
+jsmeApplyBtn.addEventListener('click', () => {
+    const smiles = jsmeApplet.smiles();
+    if (smiles) {
+        document.getElementById('search-input').value = smiles;
+        closeJsme();
+        processSearch(smiles);
+    } else {
+        alert('Struktur kosong. Silakan gambar sesuatu terlebih dahulu.');
+    }
+});
+
 // ------------------------------------------------------------------
 // Fetch & Process Search (Local Parsing first)
 // ------------------------------------------------------------------
