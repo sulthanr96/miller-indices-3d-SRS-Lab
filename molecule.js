@@ -317,6 +317,7 @@ function updateLocalUI(smiles, title, cidText) {
     render2D();
     
     document.getElementById('viewer-3d-wrap').innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">Menyiapkan model 3D...</div>';
+    viewer3D = null; // Destroy reference so $3Dmol recreates the canvas next time render3D is called
     
     // Try to render 3D instantly using OpenBabel WASM
     try {
@@ -336,6 +337,7 @@ function updateLocalUI(smiles, title, cidText) {
 
 function render3DEmpty() {
     document.getElementById('viewer-3d-wrap').innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm italic">Struktur 3D tidak tersedia.</div>';
+    viewer3D = null;
 }
 
 async function fetchExtraData(cid) {
