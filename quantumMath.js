@@ -152,7 +152,11 @@ export function evaluateHybridization(type, x, y, z) {
         balloons.push(textbookBalloon(x_s, y_s, z_s, r_s, 0, 0, -1));
     }
 
-    let sum_hybrid = 0;
+    // Add a perfectly smooth, small spherical core at the origin.
+    // This fills the center and completely prevents MarchingCubes from generating
+    // sharp jagged "spider web" artifacts where the balloons converge to zero.
+    let sum_hybrid = 0.8 * Math.exp(-r_s * r_s * 3.0);
+    
     for (let b of balloons) {
         sum_hybrid += b;
     }
