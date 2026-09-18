@@ -112,17 +112,20 @@ const hybridGroup = new THREE.Group();
 scene.add(hybridGroup);
 
 // Create perfect teardrop geometry (infinite resolution)
-const balloonGeo = new THREE.SphereGeometry(6, 64, 64);
-balloonGeo.translate(0, 6, 0); // Bottom at origin, top at y=12
+// We start with a sphere and apply a linear skew to make it fatter at the top
+// and thinner at the bottom, while preserving the rounded bottom (no sharp cones!)
+const balloonGeo = new THREE.SphereGeometry(4.5, 64, 64);
+balloonGeo.translate(0, 4.5, 0); // Bottom at origin, top at y=9
 const pos = balloonGeo.attributes.position;
 for(let i=0; i<pos.count; i++) {
     let y = pos.getY(i);
     let x = pos.getX(i);
     let z = pos.getZ(i);
-    let factor = 1.0;
-    if (y < 6) {
-        factor = Math.pow(y / 6.0, 1.2); 
-    }
+    
+    // y goes from 0 to 9. 
+    // Skew factor: smaller at bottom (but > 0 to keep it round), larger at top.
+    let factor = 0.3 + (y / 9.0) * 0.9; // factor goes from 0.3 to 1.2
+    
     pos.setX(i, x * factor);
     pos.setZ(i, z * factor);
 }
